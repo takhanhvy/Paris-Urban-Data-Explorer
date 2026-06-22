@@ -1,0 +1,45 @@
+# ─── Environnement Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# ─── Données sensibles (ne jamais versionner) ───────────────────────────────
+data/raw/
+data/sandbox/
+*.csv
+*.parquet
+*.xlsx
+*.xls
+
+# ─── Secrets ────────────────────────────────────────────────────────────────
+config/secrets.yaml
+.env
+
+# ─── Logs & métriques ───────────────────────────────────────────────────────
+monitoring/logs/*.log
+*.log
+
+# ─── Docker ─────────────────────────────────────────────────────────────────
+.docker/
+
+# ─── Airflow ────────────────────────────────────────────────────────────────
+orchestration/airflow/logs/
+orchestration/airflow/plugins/
+
+# ─── IDE / OS ────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# ─── Notebooks checkpoints ──────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Build ──────────────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/

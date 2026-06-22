@@ -1,0 +1,61 @@
+environment: dev
+
+postgres:
+  host: localhost
+  port: 5432
+  database: urban_data
+  pool_size: 5
+
+mongodb:
+  uri: mongodb://localhost:27017
+  database: urban_data_nosql
+  air_quality_ttl_seconds: 86400  # 24h
+
+kafka:
+  bootstrap_servers: localhost:9092
+  topics:
+    airparif: airparif.quality
+  producer:
+    retries: 3
+  consumer:
+    group_id: ude_consumers
+    auto_offset_reset: earliest
+
+airparif:
+  base_url: https://api.airparif.fr/indices/prevision/commune
+  poll_interval_seconds: 3600     # 1 heure
+  arrondissements_insee:
+    - "75101"
+    - "75102"
+    - "75103"
+    - "75104"
+    - "75105"
+    - "75106"
+    - "75107"
+    - "75108"
+    - "75109"
+    - "75110"
+    - "75111"
+    - "75112"
+    - "75113"
+    - "75114"
+    - "75115"
+    - "75116"
+    - "75117"
+    - "75118"
+    - "75119"
+    - "75120"
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  debug: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+
+data_paths:
+  raw: data/raw
+  bronze: data/bronze
+  silver: data/silver
+  gold: data/gold

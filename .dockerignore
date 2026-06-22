@@ -1,0 +1,47 @@
+# Environnement Python local
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Données (volumes Docker à la place)
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tests et notebooks
+notebooks/
+tests/
+
+# Logs
+*.log
+logs/
+
+# Debug
+debug_pg.py
+
+# Docs
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Variables d'environnement sensibles (injectées via env_file/environment)
+.env
+.env.*
+!.env.example

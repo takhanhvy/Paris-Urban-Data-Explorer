@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Data Explorer - Paris</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.13.0/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@5.13.0/dist/maplibre-gl.js'></script>
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Paris Urban Data Explorer</h1>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('overview', event)">Vue d'ensemble</button>
+        <button class="tab" onclick="switchTab('comparison', event)">Comparaison</button>
+        <button class="tab" onclick="switchTab('data', event)">Données détaillées</button>
+    </div>
+
+    <div class="container">
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             ONGLET 1 : VUE D'ENSEMBLE
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="overview" class="tab-content active">
+
+            <div class="filters">
+                <div class="filter-group">
+                    <div class="filter-item">
+                        <label for="year-select">Année</label>
+                        <select id="year-select">
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024" selected>2024</option>
+                            <option value="2025">2025</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="arrondissement-select">Arrondissement</label>
+                        <select id="arrondissement-select">
+                            <option value="all">Paris (tous arrondissements)</option>
+                            <option value="75101">1er arrondissement</option>
+                            <option value="75102">2ème arrondissement</option>
+                            <option value="75103">3ème arrondissement</option>
+                            <option value="75104">4ème arrondissement</option>
+                            <option value="75105">5ème arrondissement</option>
+                            <option value="75106">6ème arrondissement</option>
+                            <option value="75107">7ème arrondissement</option>
+                            <option value="75108">8ème arrondissement</option>
+                            <option value="75109">9ème arrondissement</option>
+                            <option value="75110">10ème arrondissement</option>
+                            <option value="75111">11ème arrondissement</option>
+                            <option value="75112">12ème arrondissement</option>
+                            <option value="75113">13ème arrondissement</option>
+                            <option value="75114">14ème arrondissement</option>
+                            <option value="75115">15ème arrondissement</option>
+                            <option value="75116">16ème arrondissement</option>
+                            <option value="75117">17ème arrondissement</option>
+                            <option value="75118">18ème arrondissement</option>
+                            <option value="75119">19ème arrondissement</option>
+                            <option value="75120">20ème arrondissement</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <h3>Prix médian/m²</h3>
+                    <div class="kpi-value" id="median-price-value">Chargement...</div>
+                    <div class="kpi-change" id="median-price-change"></div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Logements sociaux</h3>
+                    <div class="kpi-value" id="social-housing-value">--</div>
+                    <div class="kpi-change" id="social-housing-change"></div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Revenu médian</h3>
+                    <div class="kpi-value" id="median-income-value">--</div>
+                    <div class="kpi-change"></div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Densité de population</h3>
+                    <div class="kpi-value" id="population-density-value">--</div>
+                    <div class="kpi-change"></div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Qualité de l'air</h3>
+                    <div class="kpi-value" id="air-quality-value">--</div>
+                    <div class="kpi-change"></div>
+                </div>
+            </div>
+
+            <!-- Carte + Typologie -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h2>Prix/m² par arrondissement</h2>
+                    <div class="map-container">
+                        <div id="map"></div>
+                        <div id="map-popup" class="map-popup"></div>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item"><div class="legend-color" style="background:#FFEDA0;"></div><span>&lt; 9 000€/m²</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#FEB24C;"></div><span>9 000–11 000</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#FC4E2A;"></div><span>11 000–13 000</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#BD0026;"></div><span>&gt; 13 000€/m²</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Répartition par typologie</h2>
+                    <div class="chart-container typology-chart">
+                        <ul id="typology-legend" class="typology-legend typology-legend-inline"></ul>
+                        <div class="typology-canvas-wrapper">
+                            <canvas id="typology-chart" width="260" height="260" aria-label="Répartition des logements"></canvas>
+                            <div id="typology-loading" class="chart-placeholder">Chargement...</div>
+                            <div id="typology-tooltip" class="chart-tooltip" role="tooltip"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Évolution prix + Surfaces -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h2>Évolution du prix/m² médian</h2>
+                    <div class="chart-container price-trend-chart">
+                        <div class="price-trend-wrapper">
+                            <canvas id="price-trend-chart" width="360" height="220" aria-label="Évolution du prix médian/m²"></canvas>
+                            <div id="price-trend-loading" class="chart-placeholder">Chargement...</div>
+                            <div id="price-trend-tooltip" class="chart-tooltip" role="tooltip"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Répartition par surface</h2>
+                    <div class="chart-container surface-chart">
+                        <div class="surface-chart-wrapper">
+                            <canvas id="surface-chart" width="320" height="240" aria-label="Répartition selon surface"></canvas>
+                            <div id="surface-loading" class="chart-placeholder">Chargement...</div>
+                            <div id="surface-tooltip" class="chart-tooltip" role="tooltip"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /overview -->
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             ONGLET 2 : COMPARAISON
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="comparison" class="tab-content">
+
+            <div class="filters">
+                <h3 style="margin-bottom:0.75rem;">Sélectionner les arrondissements à comparer</h3>
+                <div class="filter-group">
+                    <div class="filter-item">
+                        <label for="comparison-year-select">Année</label>
+                        <select id="comparison-year-select"></select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="comparison-arrA-select">Arrondissement A</label>
+                        <select id="comparison-arrA-select"></select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="comparison-arrB-select">Arrondissement B</label>
+                        <select id="comparison-arrB-select"></select>
+                        <small id="comparison-arrB-error" class="comparison-error-message"></small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-grid">
+                <div class="comparison-card" data-comparison-card="A">
+                    <div class="comparison-header">
+                        <h3 id="comparison-card-a-name">--</h3>
+                    </div>
+                    <div class="stat-row"><span class="stat-label">Prix/m² médian</span><span class="stat-value" id="comparison-card-a-price">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Évolution annuelle</span><span class="stat-value" id="comparison-card-a-variation">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Logements sociaux</span><span class="stat-value" id="comparison-card-a-social">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Revenu médian</span><span class="stat-value" id="comparison-card-a-income">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Densité de population</span><span class="stat-value" id="comparison-card-a-density">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Qualité de l'air</span><span class="stat-value" id="comparison-card-a-air">--</span></div>
+                </div>
+
+                <div class="comparison-card" data-comparison-card="B">
+                    <div class="comparison-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <h3 id="comparison-card-b-name">--</h3>
+                    </div>
+                    <div class="stat-row"><span class="stat-label">Prix/m² médian</span><span class="stat-value" id="comparison-card-b-price">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Évolution annuelle</span><span class="stat-value" id="comparison-card-b-variation">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Logements sociaux</span><span class="stat-value" id="comparison-card-b-social">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Revenu médian</span><span class="stat-value" id="comparison-card-b-income">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Densité de population</span><span class="stat-value" id="comparison-card-b-density">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Qualité de l'air</span><span class="stat-value" id="comparison-card-b-air">--</span></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:1.5rem;">
+                <h2>Comparaison graphique</h2>
+                <div class="chart-container radar-chart">
+                    <div class="radar-chart-wrapper">
+                        <canvas id="comparison-radar-chart" width="520" height="460" aria-label="Comparaison radar"></canvas>
+                        <div id="comparison-radar-loading" class="chart-placeholder">Sélection en attente...</div>
+                        <div id="comparison-radar-tooltip" class="chart-tooltip" role="tooltip"></div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /comparison -->
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             ONGLET 3 : DONNÉES DÉTAILLÉES
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="data" class="tab-content">
+            <div class="card">
+                <h2>Tableau récapitulatif par arrondissement</h2>
+                <div class="filter-group" style="margin-bottom:1rem;">
+                    <div class="filter-item">
+                        <label for="data-year-select">Année</label>
+                        <select id="data-year-select">
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024" selected>2024</option>
+                            <option value="2025">2025</option>
+                        </select>
+                    </div>
+                </div>
+                <table class="data-table" id="data-table">
+                    <thead>
+                        <tr>
+                            <th>Arrondissement</th>
+                            <th>Prix/m² médian</th>
+                            <th>Var. %</th>
+                            <th>Nb transactions</th>
+                            <th>Log. sociaux</th>
+                            <th>Revenu médian</th>
+                            <th>Densité (hab/km²)</th>
+                            <th>Score attractivité</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <tr><td colspan="8" style="text-align:center;padding:2rem;color:#7f8c8d;">Chargement...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div><!-- /data -->
+
+    </div><!-- /container -->
+</body>
+</html>
