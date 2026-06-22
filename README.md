@@ -1,4 +1,4 @@
-# Urban Data Explorer 🏙️
+# Urban Data Explorer
 
 Plateforme data complète pour analyser le marché immobilier parisien : prix/m², logements sociaux, délinquance, qualité de l'air et revenus par arrondissement.
 
