@@ -87,8 +87,9 @@ def _agg_dvf(df_dvf: DataFrame) -> DataFrame:
     """
     Agrège les transactions par arrondissement × annee.
     Calcule : nb_transactions, prix_m2_median, prix_m2_moyen, Q1, Q3,
-              surface_mediane, part_appartements.
-    Le DataFrame df_dvf est déjà en cache → les 3 groupBy réutilisent le cache.
+              surface_mediane, part_appartements,
+              typologies (studio_t1…t5_plus), tranches de surface.
+    Le DataFrame df_dvf est déjà en cache → tous les groupBy réutilisent le cache.
     """
     # Agrégats principaux
     agg_main = df_dvf.groupBy("arrondissement", "annee").agg(
@@ -98,6 +99,19 @@ def _agg_dvf(df_dvf: DataFrame) -> DataFrame:
         F.percentile_approx("prix_m2", 0.25, 1000).alias("prix_m2_q1"),
         F.percentile_approx("prix_m2", 0.75, 1000).alias("prix_m2_q3"),
         F.percentile_approx("surface_reelle_bati", 0.5, 1000).alias("surface_mediane"),
+        # Typologie par nombre de pièces (% sur toutes transactions)
+        F.round(F.avg(F.when(F.col("nombre_pieces_principales") == 1, 1).otherwise(0)) * 100, 2).alias("part_studio_t1"),
+        F.round(F.avg(F.when(F.col("nombre_pieces_principales") == 2, 1).otherwise(0)) * 100, 2).alias("part_t2"),
+        F.round(F.avg(F.when(F.col("nombre_pieces_principales") == 3, 1).otherwise(0)) * 100, 2).alias("part_t3"),
+        F.round(F.avg(F.when(F.col("nombre_pieces_principales") == 4, 1).otherwise(0)) * 100, 2).alias("part_t4"),
+        F.round(F.avg(F.when(F.col("nombre_pieces_principales") >= 5, 1).otherwise(0)) * 100, 2).alias("part_t5_plus"),
+        # Tranches de surface (%)
+        F.round(F.avg(F.when(F.col("surface_reelle_bati") < 20, 1).otherwise(0)) * 100, 2).alias("part_surf_lt20"),
+        F.round(F.avg(F.when((F.col("surface_reelle_bati") >= 20) & (F.col("surface_reelle_bati") < 40), 1).otherwise(0)) * 100, 2).alias("part_surf_20_40"),
+        F.round(F.avg(F.when((F.col("surface_reelle_bati") >= 40) & (F.col("surface_reelle_bati") < 60), 1).otherwise(0)) * 100, 2).alias("part_surf_40_60"),
+        F.round(F.avg(F.when((F.col("surface_reelle_bati") >= 60) & (F.col("surface_reelle_bati") < 80), 1).otherwise(0)) * 100, 2).alias("part_surf_60_80"),
+        F.round(F.avg(F.when((F.col("surface_reelle_bati") >= 80) & (F.col("surface_reelle_bati") < 120), 1).otherwise(0)) * 100, 2).alias("part_surf_80_120"),
+        F.round(F.avg(F.when(F.col("surface_reelle_bati") >= 120, 1).otherwise(0)) * 100, 2).alias("part_surf_gt120"),
     )
 
     # Part appartements (utilise le cache — 2e groupBy)
@@ -155,7 +169,10 @@ def _agg_delinquance(df_del: DataFrame) -> DataFrame:
     global_del = (
         df_del
         .groupBy("arrondissement", "annee")
-        .agg(F.sum("taux_pour_mille").alias("taux_delinquance_global"))
+        .agg(
+            F.sum("nombre").cast("integer").alias("taux_delinquance_global"),
+            F.round(F.sum("taux_pour_mille"), 1).alias("taux_delinquance_pmille"),
+        )
     )
 
     return (
@@ -294,6 +311,40 @@ def _update_arrondissements_dim(df_arr: DataFrame, jdbc_url: str,
     print(f"[datamart/arrondissements] ✓ {len(rows)} arrondissements mis à jour (superficie + population + densité)")
 
 
+def _update_residences_principales(df_rp: DataFrame, jdbc_url: str,
+                                    user: str, password: str) -> None:
+    """
+    Met à jour ude.arrondissements.nb_residences_principales depuis silver.
+    Source : base-cc-logement-2022.CSV (INSEE RP 2022), 20 lignes.
+    """
+    from py4j.java_gateway import java_import
+
+    rows = df_rp.select("arrondissement", "nb_residences_principales").collect()
+
+    jvm = df_rp.sparkSession.sparkContext._jvm
+    java_import(jvm, "java.util.Properties")
+    props = jvm.Properties()
+    props.setProperty("user", user)
+    props.setProperty("password", password)
+
+    driver = jvm.org.postgresql.Driver()
+    conn = driver.connect(jdbc_url, props)
+    try:
+        stmt = conn.createStatement()
+        for row in rows:
+            sql = (
+                f"UPDATE ude.arrondissements "
+                f"SET nb_residences_principales = {int(row.nb_residences_principales)} "
+                f"WHERE arrondissement = {int(row.arrondissement)}"
+            )
+            stmt.execute(sql)
+        stmt.close()
+    finally:
+        conn.close()
+
+    print(f"[datamart/residences_principales] ✓ {len(rows)} arrondissements mis à jour")
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -311,6 +362,10 @@ def main() -> None:
     df_arr = _read_silver(spark, args.silver_path, "arrondissements")
     _update_arrondissements_dim(df_arr, args.jdbc_url, args.jdbc_user, args.jdbc_password)
     df_arr.unpersist()
+
+    df_rp = _read_silver(spark, args.silver_path, "residences_principales")
+    _update_residences_principales(df_rp, args.jdbc_url, args.jdbc_user, args.jdbc_password)
+    df_rp.unpersist()
 
     # ── Lecture silver avec cache (réutilisé pour agrégations multiples) ──────
     df_dvf = _read_silver(spark, args.silver_path, "transactions", args.annee)

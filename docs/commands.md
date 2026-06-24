@@ -56,43 +56,48 @@ docker exec ude_api python -m ingestion.api.feeder_airparif_batch
 
 # Revenus FiLoSoFi XLSX → data/raw/revenus_iris_paris.csv
 docker exec ude_api python -m ingestion.files.feeder_revenus
+
+# Résidences principales : fichier déjà présent dans data/raw/ (base-cc-logement-2022.CSV)
+# Pas de feeder Python — lu directement par Spark feeder.sh
 ```
 
 ### Étape 2 — Spark feeder : data/raw/ → MinIO bronze
 
 ```powershell
-# Toutes les sources (dvf, delinquance, logements_sociaux, revenus, arrondissements)
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh all
+# Toutes les sources
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh all
 
 # Source spécifique
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh dvf 2026-06-24
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh logements_sociaux 2026-06-24
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh delinquance 2026-06-24
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh revenus 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh logements_sociaux 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh delinquance 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh revenus 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh residences_principales 2026-06-24
 ```
 
 ### Étape 3 — Spark processor : MinIO bronze → MinIO silver
 
 ```powershell
 # Toutes les sources
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh all
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh all
 
 # Source spécifique
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh dvf 2026-06-24
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh delinquance 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh delinquance 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh residences_principales 2026-06-24
 ```
 
 ### Étape 4 — Spark datamart : MinIO silver → PostgreSQL
 
 ```powershell
 # Toutes les années (2020–2025)
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh
+docker exec ude_spark_master bash /opt/spark-apps/submit/datamart.sh
 
 # Année spécifique
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024
+docker exec ude_spark_master bash /opt/spark-apps/submit/datamart.sh 2024
 
 # Année spécifique en mode append
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024 append
+docker exec ude_spark_master bash /opt/spark-apps/submit/datamart.sh 2024 append
 ```
 
 ---

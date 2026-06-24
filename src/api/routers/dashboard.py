@@ -222,6 +222,7 @@ async def get_metrics(
             SELECT arrondissement,
                    SUM(COALESCE(nb_logements_sociaux, 0)) AS total_social
             FROM ude.indicateurs_gold
+            WHERE annee <= :year
             GROUP BY arrondissement
         ),
         prev_year AS (
@@ -238,12 +239,14 @@ async def get_metrics(
             g.nb_transactions                   AS transactions_total,
             g.revenu_median_arr                 AS revenu_median,
             g.score_attractivite,
+            g.taux_delinquance_global,
+            g.taux_delinquance_pmille,
             a.densite_population,
             CASE
-                WHEN a.population_2020 > 0
+                WHEN a.nb_residences_principales > 0
                 THEN ROUND(
                     COALESCE(cs.total_social, 0) * 100.0
-                    / NULLIF(a.population_2020::numeric / 2.2, 0),
+                    / NULLIF(a.nb_residences_principales::numeric, 0),
                     1
                 )
                 ELSE 0
@@ -314,6 +317,8 @@ async def get_metrics(
             "revenu_median": w_avg("revenu_median"),
             "transactions_total": total_tx,
             "score_attractivite": simple_avg("score_attractivite"),
+            "taux_delinquance_global": simple_avg("taux_delinquance_global"),
+            "taux_delinquance_pmille": simple_avg("taux_delinquance_pmille"),
             "air_quality_global": _get_air_quality(None),
         }
 
@@ -325,52 +330,41 @@ async def get_typology(
 ):
     """
     Répartition par type de logement (Studios/T1 … T5+).
-    Source : Silver parquet transactions_paris.parquet.
+    Source : PostgreSQL ude.indicateurs_gold (colonnes part_studio_t1…part_t5_plus).
     """
     arr = _parse_arr(arrondissement)
-    df = _load_silver_transactions()
-
-    if df is None or df.empty:
-        # Fallback : distribution typique Paris si pas de Silver
-        fallback = [
-            {"id": "studio_t1", "value": 28.5, "count": 0},
-            {"id": "t2",        "value": 31.2, "count": 0},
-            {"id": "t3",        "value": 24.8, "count": 0},
-            {"id": "t4",        "value": 11.3, "count": 0},
-            {"id": "t5_plus",   "value": 4.2,  "count": 0},
-        ]
-        return {"segments": fallback, "source": "fallback"}
-
-    # Filtrer
-    if "annee" in df.columns:
-        df = df[df["annee"] == year]
+    params: dict = {"year": year}
+    arr_filter = "AND arrondissement = :arr" if arr is not None else ""
     if arr is not None:
-        arr_col = "arrondissement" if "arrondissement" in df.columns else None
-        if arr_col:
-            df = df[df[arr_col] == arr]
+        params["arr"] = arr
 
-    # Identifier la colonne pièces
-    pieces_col = next(
-        (c for c in ["nombre_pieces_principales", "nb_pieces", "pieces"] if c in df.columns),
-        None
-    )
-    if pieces_col is None or df.empty:
+    sql = f"""
+        SELECT
+            AVG(nb_transactions)  AS total,
+            AVG(part_studio_t1)   AS studio_t1,
+            AVG(part_t2)          AS t2,
+            AVG(part_t3)          AS t3,
+            AVG(part_t4)          AS t4,
+            AVG(part_t5_plus)     AS t5_plus
+        FROM ude.indicateurs_gold
+        WHERE annee = :year {arr_filter}
+    """
+    with _get_engine().connect() as conn:
+        row = _rows(conn.execute(text(sql), params))
+
+    if not row or row[0].get("studio_t1") is None:
         return {"segments": [], "source": "no_data"}
 
-    df = df[df[pieces_col].notna()].copy()
-    df["_seg"] = df[pieces_col].apply(_classify_pieces)
-    total = len(df)
-
-    segments = []
-    for seg_id in TYPOLOGY_SEGMENTS:
-        count = int((df["_seg"] == seg_id).sum())
-        segments.append({
-            "id":    seg_id,
-            "value": round(count / total * 100, 2) if total > 0 else 0,
-            "count": count,
-        })
-
-    return {"segments": segments, "source": "silver", "total": total}
+    r = row[0]
+    total = _safe_float(r.get("total")) or 0
+    segments = [
+        {"id": "studio_t1", "value": _safe_float(r["studio_t1"]) or 0, "count": round(((_safe_float(r["studio_t1"]) or 0) / 100) * total)},
+        {"id": "t2",        "value": _safe_float(r["t2"])        or 0, "count": round(((_safe_float(r["t2"])        or 0) / 100) * total)},
+        {"id": "t3",        "value": _safe_float(r["t3"])        or 0, "count": round(((_safe_float(r["t3"])        or 0) / 100) * total)},
+        {"id": "t4",        "value": _safe_float(r["t4"])        or 0, "count": round(((_safe_float(r["t4"])        or 0) / 100) * total)},
+        {"id": "t5_plus",   "value": _safe_float(r["t5_plus"])   or 0, "count": round(((_safe_float(r["t5_plus"])   or 0) / 100) * total)},
+    ]
+    return {"segments": segments, "source": "gold", "total": int(total)}
 
 
 @router.get("/surfaces")
@@ -380,53 +374,43 @@ async def get_surfaces(
 ):
     """
     Répartition par tranche de surface (< 20 m² … > 120 m²).
-    Source : Silver parquet transactions_paris.parquet.
+    Source : PostgreSQL ude.indicateurs_gold (colonnes part_surf_*).
     """
     arr = _parse_arr(arrondissement)
-    df = _load_silver_transactions()
-
-    if df is None or df.empty:
-        fallback = [
-            {"id": "lt_20",    "value": 8.3,  "count": 0},
-            {"id": "bt_20_40", "value": 32.1, "count": 0},
-            {"id": "bt_40_60", "value": 29.4, "count": 0},
-            {"id": "bt_60_80", "value": 16.2, "count": 0},
-            {"id": "bt_80_120","value": 10.5, "count": 0},
-            {"id": "gt_120",   "value": 3.5,  "count": 0},
-        ]
-        return {"segments": fallback, "source": "fallback"}
-
-    if "annee" in df.columns:
-        df = df[df["annee"] == year]
+    params: dict = {"year": year}
+    arr_filter = "AND arrondissement = :arr" if arr is not None else ""
     if arr is not None:
-        arr_col = next(
-            (c for c in ["arrondissement"] if c in df.columns), None
-        )
-        if arr_col:
-            df = df[df[arr_col] == arr]
+        params["arr"] = arr
 
-    surf_col = next(
-        (c for c in ["surface_m2", "surface_reelle_bati", "surface"] if c in df.columns),
-        None
-    )
-    if surf_col is None or df.empty:
+    sql = f"""
+        SELECT
+            AVG(nb_transactions)  AS total,
+            AVG(part_surf_lt20)   AS lt_20,
+            AVG(part_surf_20_40)  AS bt_20_40,
+            AVG(part_surf_40_60)  AS bt_40_60,
+            AVG(part_surf_60_80)  AS bt_60_80,
+            AVG(part_surf_80_120) AS bt_80_120,
+            AVG(part_surf_gt120)  AS gt_120
+        FROM ude.indicateurs_gold
+        WHERE annee = :year {arr_filter}
+    """
+    with _get_engine().connect() as conn:
+        row = _rows(conn.execute(text(sql), params))
+
+    if not row or row[0].get("lt_20") is None:
         return {"segments": [], "source": "no_data"}
 
-    df = df[df[surf_col].notna() & (df[surf_col] > 0)].copy()
-    df["_surf_seg"] = df[surf_col].apply(_classify_surface)
-    df = df[df["_surf_seg"].notna()]
-    total = len(df)
-
-    segments = []
-    for seg_id, _ in SURFACE_GROUPS:
-        count = int((df["_surf_seg"] == seg_id).sum())
-        segments.append({
-            "id":    seg_id,
-            "value": round(count / total * 100, 2) if total > 0 else 0,
-            "count": count,
-        })
-
-    return {"segments": segments, "source": "silver", "total": total}
+    r = row[0]
+    total = _safe_float(r.get("total")) or 0
+    segments = [
+        {"id": "lt_20",     "value": _safe_float(r["lt_20"])    or 0, "count": round(((_safe_float(r["lt_20"])    or 0) / 100) * total)},
+        {"id": "bt_20_40",  "value": _safe_float(r["bt_20_40"]) or 0, "count": round(((_safe_float(r["bt_20_40"]) or 0) / 100) * total)},
+        {"id": "bt_40_60",  "value": _safe_float(r["bt_40_60"]) or 0, "count": round(((_safe_float(r["bt_40_60"]) or 0) / 100) * total)},
+        {"id": "bt_60_80",  "value": _safe_float(r["bt_60_80"]) or 0, "count": round(((_safe_float(r["bt_60_80"]) or 0) / 100) * total)},
+        {"id": "bt_80_120", "value": _safe_float(r["bt_80_120"])or 0, "count": round(((_safe_float(r["bt_80_120"])or 0) / 100) * total)},
+        {"id": "gt_120",    "value": _safe_float(r["gt_120"])   or 0, "count": round(((_safe_float(r["gt_120"])   or 0) / 100) * total)},
+    ]
+    return {"segments": segments, "source": "gold", "total": int(total)}
 
 
 @router.get("/price/history")

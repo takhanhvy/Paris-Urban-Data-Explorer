@@ -40,7 +40,7 @@ API Airparif (live)  →  airparif_producer.py  →  Kafka  →  airparif_consum
 | Dashboard | JavaScript + MapLibre GL JS |
 | Conteneurisation | Docker Compose (9 services) |
 
-## Sources de données (5 types)
+## Sources de données (6 types)
 
 | # | Source | Format | Volume |
 |---|--------|--------|--------|
@@ -49,12 +49,13 @@ API Airparif (live)  →  airparif_producer.py  →  Kafka  →  airparif_consum
 | 3 | Délinquance INSEE | Parquet (filtré Paris) | — |
 | 4 | Qualité de l'air Airparif | API live + Kafka | 20 arrondissements |
 | 5 | Revenus FiLoSoFi INSEE 2018 | XLSX → CSV | 12 395 IRIS |
+| 6 | Résidences principales INSEE 2022 | CSV (base-cc-logement-2022.CSV) | 20 arrondissements Paris |
 
 ## Prérequis
 
 - Docker Desktop (avec au moins 4 Go RAM alloués)
 - PowerShell (Windows)
-- Fichiers sources dans `data/raw/` : `dvf_75_2020.csv` à `dvf_75_2025.csv`, `delinquance.parquet`, `BASE_TD_FILO_DEC_IRIS_2018.xlsx`
+- Fichiers sources dans `data/raw/` : `dvf_75_2020.csv` à `dvf_75_2025.csv`, `delinquance.parquet`, `BASE_TD_FILO_DEC_IRIS_2018.xlsx`, `base-cc-logement-2022.CSV`
 
 ## Démarrage rapide
 
@@ -86,7 +87,8 @@ docker compose ps
 ```
 Paris-Urban-Data-Explorer/
 ├── data/raw/               Landing zone commune : CSV DVF, Parquet délinquance, XLSX revenus,
-│                           JSON logements sociaux, JSON Airparif batch
+│                           JSON logements sociaux, JSON Airparif batch,
+│                           CSV résidences principales INSEE 2022
 ├── pipelines/spark/        Jobs Spark Python (feeder, processor, datamart) + scripts submit/
 ├── ingestion/
 │   ├── api/                Feeders API REST (logements sociaux, Airparif batch)

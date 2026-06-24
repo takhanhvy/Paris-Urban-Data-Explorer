@@ -19,14 +19,15 @@ ude.arrondissements  (PK: arrondissement SMALLINT 1–20)
 ### `ude.arrondissements` — dimension géographique
 
 ```sql
-arrondissement  SMALLINT PRIMARY KEY   -- 1 à 20
-code_insee      CHAR(5)                -- '75101' à '75120'
-nom             VARCHAR(50)
-code_postal     CHAR(5)
-superficie_km2  NUMERIC(6,3)
-population_2020 INTEGER
-densite_population DOUBLE PRECISION   -- calculée par processor.py (population / superficie)
-geom            GEOMETRY(MULTIPOLYGON, 4326)  -- PostGIS WGS84
+arrondissement              SMALLINT PRIMARY KEY   -- 1 à 20
+code_insee                  CHAR(5)                -- '75101' à '75120'
+nom                         VARCHAR(50)
+code_postal                 CHAR(5)
+superficie_km2              NUMERIC(6,3)
+population_2020             INTEGER
+densite_population          INTEGER                -- calculée par processor.py (population / superficie)
+nb_residences_principales   INTEGER                -- INSEE RP 2022 (base-cc-logement-2022.CSV)
+geom                        GEOMETRY(MULTIPOLYGON, 4326)  -- PostGIS WGS84
 ```
 
 ### `ude.indicateurs_gold` — table de faits (alimentée par datamart.py)
@@ -39,31 +40,48 @@ annee               SMALLINT                    -- 2020 à 2025
 
 -- DVF
 nb_transactions     INTEGER
-prix_m2_median      DOUBLE PRECISION
-prix_m2_moyen       DOUBLE PRECISION
-prix_m2_q1          DOUBLE PRECISION
-prix_m2_q3          DOUBLE PRECISION
-surface_mediane     DOUBLE PRECISION
-part_appartements   DOUBLE PRECISION            -- % des transactions
+prix_m2_median      NUMERIC(10,2)
+prix_m2_moyen       NUMERIC(10,2)
+prix_m2_q1          NUMERIC(10,2)
+prix_m2_q3          NUMERIC(10,2)
+surface_mediane     NUMERIC(8,2)
+part_appartements   NUMERIC(5,2)                -- % des transactions
+
+-- Répartition typologique (% par nombre de pièces — calculé par datamart.py)
+part_studio_t1      NUMERIC(5,2)
+part_t2             NUMERIC(5,2)
+part_t3             NUMERIC(5,2)
+part_t4             NUMERIC(5,2)
+part_t5_plus        NUMERIC(5,2)
+
+-- Répartition par tranche de surface (%)
+part_surf_lt20      NUMERIC(5,2)                -- < 20 m²
+part_surf_20_40     NUMERIC(5,2)
+part_surf_40_60     NUMERIC(5,2)
+part_surf_60_80     NUMERIC(5,2)
+part_surf_80_120    NUMERIC(5,2)
+part_surf_gt120     NUMERIC(5,2)                -- > 120 m²
 
 -- Logements sociaux
 nb_logements_sociaux   INTEGER
 nb_plai                INTEGER
 nb_plus_pluscd         INTEGER
 nb_pls                 INTEGER
+-- taux calculé à la volée dans l'API : SUM(nb_logements_sociaux) / nb_residences_principales × 100
 
 -- Délinquance
-taux_cambriolages_pmille  DOUBLE PRECISION
-taux_violences_pmille     DOUBLE PRECISION
-taux_delinquance_global   DOUBLE PRECISION
+taux_cambriolages_pmille  NUMERIC(8,3)
+taux_violences_pmille     NUMERIC(8,3)
+taux_delinquance_global   INTEGER                -- nombre total de faits/an (SUM(nombre))
+taux_delinquance_pmille   NUMERIC(8,1)           -- taux pour 1 000 habitants (non affiché)
 
 -- Revenus (agrégé depuis IRIS vers arrondissement)
-revenu_median_arr         DOUBLE PRECISION
-indice_gini_arr           DOUBLE PRECISION
-rapport_interdecile_arr   DOUBLE PRECISION
+revenu_median_arr         NUMERIC(10,2)
+indice_gini_arr           NUMERIC(6,4)
+rapport_interdecile_arr   NUMERIC(6,2)
 
 -- Score composite
-score_attractivite        DOUBLE PRECISION       -- 0–100, Min-Max normalisé
+score_attractivite        NUMERIC(5,2)           -- 0–100, Min-Max normalisé
 
 computed_at  TIMESTAMP DEFAULT NOW()
 ```
@@ -146,7 +164,8 @@ s3a://urban-data/bronze/
 ├── dvf/                        ← CSV DVF toutes colonnes, types string
 ├── delinquance/                ← copie fidèle du Parquet INSEE national
 ├── logements_sociaux/          ← JSON opendata.paris.fr aplati
-└── revenus/                    ← XLSX converti via pandas bridge
+├── revenus/                    ← XLSX converti via pandas bridge
+└── residences_principales/     ← base-cc-logement-2022.CSV, filtré Paris (CODGEO + P22_RP)
 ```
 
 ### Couche silver — nettoyée et typée
@@ -155,10 +174,11 @@ Types castés, filtrage Paris, colonnes métier calculées (`prix_m2`, `arrondis
 
 ```
 s3a://urban-data/silver/
-├── transactions/               ← DVF filtre Paris (code_commune LIKE '751%'), prix_m2, types castés
+├── transactions/               ← DVF filtre Paris, prix_m2, types castés
 ├── delinquance/                ← filtré 75101–75120, arrondissement 1–20 extrait
 ├── logements_sociaux/          ← arrdt normalisé, volumes INTEGER
-└── revenus/                    ← filtré COM LIKE '75%', déciles DOUBLE PRECISION
+├── revenus/                    ← filtré COM LIKE '75%', déciles DOUBLE PRECISION
+└── residences_principales/     ← arrondissement 1–20, nb_residences_principales INTEGER
 ```
 
 ---

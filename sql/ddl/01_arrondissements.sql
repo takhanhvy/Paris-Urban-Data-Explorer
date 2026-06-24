@@ -25,9 +25,10 @@ COMMENT ON COLUMN ude.arrondissements.geom IS 'Polygone WGS84 importé depuis un
 -- ── Migration idempotente ─────────────────────────────────────────────────────
 -- Ces ALTER s'appliquent même si la table existait déjà (volume persistant).
 -- ADD COLUMN IF NOT EXISTS est sans effet si la colonne est déjà présente.
-ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS superficie_km2     NUMERIC(6,3);
-ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS population_2020    INTEGER;
-ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS densite_population INTEGER;
+ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS superficie_km2              NUMERIC(6,3);
+ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS population_2020             INTEGER;
+ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS densite_population          INTEGER;
+ALTER TABLE ude.arrondissements ADD COLUMN IF NOT EXISTS nb_residences_principales   INTEGER;  -- INSEE RP 2022
 
 -- ── Données de référence (upsert idempotent) ──────────────────────────────────
 -- superficie_km2  : source IGN (arrondissements.csv)

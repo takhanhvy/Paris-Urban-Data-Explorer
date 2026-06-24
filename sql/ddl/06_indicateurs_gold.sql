@@ -28,12 +28,28 @@ CREATE TABLE IF NOT EXISTS ude.indicateurs_gold (
     -- Indicateurs délinquance
     taux_cambriolages_pmille    NUMERIC(8,3),
     taux_violences_pmille       NUMERIC(8,3),
-    taux_delinquance_global     NUMERIC(8,3),
+    taux_delinquance_global     INTEGER,             -- nombre total de faits/an
+    taux_delinquance_pmille     NUMERIC(8,1),        -- taux pour 1 000 habitants
 
     -- Indicateurs revenus (agrégé depuis IRIS)
     revenu_median_arr           NUMERIC(10,2),
     indice_gini_arr             NUMERIC(6,4),
     rapport_interdecile_arr     NUMERIC(6,2),
+
+    -- Répartition typologique (% par nombre de pièces)
+    part_studio_t1              NUMERIC(5,2),
+    part_t2                     NUMERIC(5,2),
+    part_t3                     NUMERIC(5,2),
+    part_t4                     NUMERIC(5,2),
+    part_t5_plus                NUMERIC(5,2),
+
+    -- Répartition par tranche de surface (%)
+    part_surf_lt20              NUMERIC(5,2),
+    part_surf_20_40             NUMERIC(5,2),
+    part_surf_40_60             NUMERIC(5,2),
+    part_surf_60_80             NUMERIC(5,2),
+    part_surf_80_120            NUMERIC(5,2),
+    part_surf_gt120             NUMERIC(5,2),
 
     -- Indicateur composite (score 0–100 calculé par business rules)
     score_attractivite          NUMERIC(5,2),

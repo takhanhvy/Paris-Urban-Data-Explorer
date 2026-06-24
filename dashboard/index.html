@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.13.0/dist/maplibre-gl.css' />
     <script src='https://unpkg.com/maplibre-gl@5.13.0/dist/maplibre-gl.js'></script>
-    <script src="app.js" defer></script>
+    <script src="app.js?v=5" defer></script>
 </head>
 <body>
     <div class="header">
@@ -95,6 +95,11 @@
                     <h3>Qualité de l'air</h3>
                     <div class="kpi-value" id="air-quality-value">--</div>
                     <div class="kpi-change"></div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Délinquance</h3>
+                    <div class="kpi-value" id="crime-rate-value">--</div>
+                    <div class="kpi-change" id="crime-rate-sub"></div>
                 </div>
             </div>
 
@@ -188,6 +193,7 @@
                     <div class="stat-row"><span class="stat-label">Revenu médian</span><span class="stat-value" id="comparison-card-a-income">--</span></div>
                     <div class="stat-row"><span class="stat-label">Densité de population</span><span class="stat-value" id="comparison-card-a-density">--</span></div>
                     <div class="stat-row"><span class="stat-label">Qualité de l'air</span><span class="stat-value" id="comparison-card-a-air">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Délinquance</span><span class="stat-value" id="comparison-card-a-crime">--</span></div>
                 </div>
 
                 <div class="comparison-card" data-comparison-card="B">
@@ -200,6 +206,7 @@
                     <div class="stat-row"><span class="stat-label">Revenu médian</span><span class="stat-value" id="comparison-card-b-income">--</span></div>
                     <div class="stat-row"><span class="stat-label">Densité de population</span><span class="stat-value" id="comparison-card-b-density">--</span></div>
                     <div class="stat-row"><span class="stat-label">Qualité de l'air</span><span class="stat-value" id="comparison-card-b-air">--</span></div>
+                    <div class="stat-row"><span class="stat-label">Délinquance</span><span class="stat-value" id="comparison-card-b-crime">--</span></div>
                 </div>
             </div>
 

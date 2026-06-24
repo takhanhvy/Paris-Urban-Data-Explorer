@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="UDE Processor — HDFS /raw → /silver")
     p.add_argument(
         "--source", required=True,
-        choices=["dvf", "delinquance", "logements_sociaux", "revenus", "arrondissements", "all"],
+        choices=["dvf", "delinquance", "logements_sociaux", "revenus", "arrondissements", "residences_principales", "all"],
     )
     p.add_argument("--bronze-path", required=True,
                    help="Chemin HDFS /raw  (ex: hdfs://namenode:9000/urban-data/raw)")
@@ -325,6 +325,34 @@ def process_arrondissements(spark: SparkSession, bronze_path: str, silver_path: 
     df_clean.unpersist()
 
 
+# ─── Résidences principales INSEE 2022 ───────────────────────────────────────
+
+def process_residences_principales(spark: SparkSession, bronze_path: str, silver_path: str,
+                                    y: str, m: str, d: str) -> None:
+    """
+    Nettoie résidences principales :
+    - Cast CODGEO string, P22_RP double → int
+    - Extraction arrondissement (CODGEO 75101 → 1)
+    - Donnée de référence 2022 (pas de filtre annee)
+    """
+    df_raw = _read_raw_partition(spark, bronze_path, "residences_principales", y, m, d)
+
+    df_clean = (
+        df_raw
+        .withColumn("arrondissement",
+                    (F.col("CODGEO").cast("int") - 75100).cast("smallint"))
+        .withColumn("nb_residences_principales",
+                    F.col("P22_RP").cast("double").cast("int"))
+        .select("CODGEO", "arrondissement", "nb_residences_principales")
+        .filter("arrondissement between 1 and 20")
+    )
+
+    nb = df_clean.count()
+    print(f"[processor/residences_principales] {nb} arrondissements Paris")
+
+    _write_silver(df_clean, silver_path, "residences_principales", y, m, d)
+
+
 # ─── Dispatcher ──────────────────────────────────────────────────────────────
 
 PROCESSORS = {
@@ -333,6 +361,7 @@ PROCESSORS = {
     "logements_sociaux": process_logements_sociaux,
     "revenus": process_revenus,
     "arrondissements": process_arrondissements,
+    "residences_principales": process_residences_principales,
 }
 
 

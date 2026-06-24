@@ -105,6 +105,13 @@
             suffix: 'air',
             key: 'air_quality_global',
             formatter: (value) => value || 'N/A'
+        },
+        {
+            suffix: 'crime',
+            key: 'taux_delinquance_global',
+            formatter: (value) => (typeof value === 'number' && Number.isFinite(value))
+                ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value)} faits/an`
+                : 'N/A'
         }
     ];
     const typologyChartState = {
@@ -724,10 +731,11 @@
         updateIncomeCard(data);
         updateDensityCard(data);
         updateAirQualityCard(data);
+        updateCrimeCard(data);
     }
 
     function renderMetricsError() {
-        const ids = ['median-price-value', 'social-housing-value', 'median-income-value', 'population-density-value', 'air-quality-value'];
+        const ids = ['median-price-value', 'social-housing-value', 'median-income-value', 'population-density-value', 'air-quality-value', 'crime-rate-value'];
         ids.forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.textContent = 'Donnée indisponible';
@@ -1293,6 +1301,15 @@
     function updateAirQualityCard(data) {
         const el = document.getElementById('air-quality-value');
         if (el) el.textContent = data.air_quality_global || 'N/A';
+    }
+
+    function updateCrimeCard(data) {
+        const el = document.getElementById('crime-rate-value');
+        if (!el) return;
+        const nb = data.taux_delinquance_global;
+        el.textContent = (typeof nb === 'number' && Number.isFinite(nb))
+            ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(nb)} faits/an`
+            : 'N/A';
     }
 
     // ─── Formatters ───────────────────────────────────────────────────────────

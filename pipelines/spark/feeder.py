@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="UDE Feeder — sources brutes → HDFS /raw")
     p.add_argument(
         "--source", required=True,
-        choices=["dvf", "delinquance", "logements_sociaux", "revenus", "arrondissements", "all"],
+        choices=["dvf", "delinquance", "logements_sociaux", "revenus", "arrondissements", "airparif", "residences_principales", "all"],
         help="Source à ingérer"
     )
     p.add_argument(
@@ -302,15 +302,55 @@ def ingest_airparif(spark: SparkSession, input_path: str, output_path: str,
     df.unpersist()
 
 
+# ─── Ingestion Résidences principales INSEE 2022 ─────────────────────────────
+
+def ingest_residences_principales(spark: SparkSession, input_path: str, output_path: str,
+                                   y: str, m: str, d: str) -> None:
+    """
+    Lit base-cc-logement-2022.CSV (France entière, séparateur ;).
+    Filtre sur Paris (CODGEO 75101–75120), garde CODGEO + P22_RP.
+    Donnée de référence 2022 — pas de variation annuelle.
+    """
+    src = os.path.join(input_path, "base-cc-logement-2022.CSV")
+    if not os.path.exists(src):
+        raise FileNotFoundError(
+            f"Fichier résidences principales introuvable : {src}\n"
+            f"Télécharger depuis : https://www.insee.fr/fr/statistiques/8581474"
+        )
+
+    print(f"[feeder/residences_principales] Lecture : {src}")
+
+    paris_filter = "CODGEO IN (" + ",".join(f"'{75100+i}'" for i in range(1, 21)) + ")"
+
+    df = (
+        spark.read
+        .option("header", "true")
+        .option("sep", ";")
+        .option("inferSchema", "false")
+        .csv(src)
+        .select("CODGEO", "P22_RP")
+        .filter(paris_filter)
+        .select("CODGEO", "P22_RP", *_partition_cols(y, m, d))
+        .cache()
+    )
+
+    nb = df.count()
+    print(f"[feeder/residences_principales] {nb} arrondissements Paris")
+
+    _write_partitioned(df, output_path, "residences_principales")
+    df.unpersist()
+
+
 # --- Dispatch ----------------------------------------------------------------
 
 FEEDERS = {
-    "dvf":               ingest_dvf,
-    "delinquance":       ingest_delinquance,
-    "logements_sociaux": ingest_logements_sociaux,
-    "revenus":           ingest_revenus,
-    "arrondissements":   ingest_arrondissements,
-    "airparif":          ingest_airparif,
+    "dvf":                      ingest_dvf,
+    "delinquance":              ingest_delinquance,
+    "logements_sociaux":        ingest_logements_sociaux,
+    "revenus":                  ingest_revenus,
+    "arrondissements":          ingest_arrondissements,
+    "airparif":                 ingest_airparif,
+    "residences_principales":   ingest_residences_principales,
 }
 
 ALL_SOURCES = list(FEEDERS.keys())
