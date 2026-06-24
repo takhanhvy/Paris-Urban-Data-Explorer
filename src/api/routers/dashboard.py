@@ -238,11 +238,7 @@ async def get_metrics(
             g.nb_transactions                   AS transactions_total,
             g.revenu_median_arr                 AS revenu_median,
             g.score_attractivite,
-            CASE
-                WHEN a.superficie_km2 > 0
-                THEN ROUND(a.population_2020::numeric / a.superficie_km2)
-                ELSE NULL
-            END                                 AS densite_population,
+            a.densite_population,
             CASE
                 WHEN a.population_2020 > 0
                 THEN ROUND(
@@ -255,7 +251,7 @@ async def get_metrics(
             CASE
                 WHEN p.prev_prix > 0
                 THEN ROUND(
-                    (g.prix_m2_median - p.prev_prix) / p.prev_prix * 100,
+                    ((g.prix_m2_median - p.prev_prix) / p.prev_prix * 100)::numeric,
                     2
                 )
                 ELSE NULL
@@ -540,7 +536,7 @@ async def get_data_table(
             CASE
                 WHEN p.prev_prix > 0
                 THEN ROUND(
-                    (g.prix_m2_median - p.prev_prix) / p.prev_prix * 100, 2
+                    ((g.prix_m2_median - p.prev_prix) / p.prev_prix * 100)::numeric, 2
                 )
                 ELSE NULL
             END AS variation,
@@ -554,11 +550,7 @@ async def get_data_table(
                 ELSE 0
             END AS tx_logement_sociaux,
             g.revenu_median_arr,
-            CASE
-                WHEN a.superficie_km2 > 0
-                THEN ROUND(a.population_2020::numeric / a.superficie_km2)
-                ELSE NULL
-            END AS densite_population,
+            a.densite_population,
             g.score_attractivite
         FROM ude.indicateurs_gold g
         JOIN ude.arrondissements a USING (arrondissement)

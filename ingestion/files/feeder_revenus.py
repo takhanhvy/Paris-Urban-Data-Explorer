@@ -1,8 +1,16 @@
 """
-Feeder Revenus — XLSX INSEE FiLoSoFi 2018 vers data/bronze/
+Feeder Revenus — XLSX INSEE FiLoSoFi 2018 vers data/raw/
 
-Lit BASE_TD_FILO_DEC_IRIS_2018.xlsx, filtre sur Paris (COM LIKE '751%'),
-et sauvegarde dans data/bronze/revenus_iris_raw.parquet.
+Lit BASE_TD_FILO_DEC_IRIS_2018.xlsx (feuille IRIS_DEC, header ligne 6),
+filtre les 870 IRIS parisiens (code IRIS commencant par '75'),
+sauvegarde en CSV dans data/raw/ pour lecture directe par Spark feeder.py.
+
+Spark ne peut pas lire XLSX nativement (pas de spark-excel Scala 2.13).
+
+12 395 lignes France entiere -> 870 lignes Paris apres filtrage.
+
+Usage :
+    python -m ingestion.files.feeder_revenus
 """
 
 import sys
@@ -22,49 +30,50 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 XLSX_FILENAME = "BASE_TD_FILO_DEC_IRIS_2018.xlsx"
-COM_COL = "COM"  # colonne code commune
+SHEET_NAME = "IRIS_DEC"
+HEADER_ROW = 5  # header en ligne 6 Excel = skiprows=5
 
 
-@log_pipeline_run("feeder_revenus", "revenus", "bronze")
+@log_pipeline_run("feeder_revenus", "revenus", "raw")
 def ingest_revenus(raw_path: str | None = None, bronze_path: str | None = None) -> dict:
-    """
-    Lit le fichier XLSX FiLoSoFi, filtre Paris, convertit en Parquet Bronze.
-    """
+    """Lit le XLSX FiLoSoFi, filtre Paris, ecrit CSV dans data/raw/ pour Spark."""
     raw_dir = Path(raw_path or settings.data_raw_path)
-    bronze_dir = Path(bronze_path or settings.data_bronze_path)
-    bronze_dir.mkdir(parents=True, exist_ok=True)
 
-    xlsx_file = raw_dir / XLSX_FILENAME
-    if not xlsx_file.exists():
-        # Cherche n'importe quel XLSX si le nom exact n'est pas trouvé
-        xlsx_files = list(raw_dir.glob("*.xlsx"))
-        if not xlsx_files:
-            raise IngestionError(f"Aucun fichier XLSX trouvé dans {raw_dir}")
-        xlsx_file = xlsx_files[0]
-        logger.warning(f"Fichier {XLSX_FILENAME} non trouvé, utilisation de {xlsx_file.name}")
+    src = raw_dir / XLSX_FILENAME
+    if not src.exists():
+        raise IngestionError(f"Fichier introuvable : {src}")
 
-    logger.info(f"Lecture de {xlsx_file.name} (peut prendre quelques secondes…)")
-
-    df = pd.read_excel(
-        xlsx_file,
-        dtype={COM_COL: str, "IRIS": str},
-        engine="openpyxl",
-        sheet_name="IRIS_DEC", 
-        header=5
+    logger.info(f"Lecture : {src} (feuille={SHEET_NAME}, header ligne {HEADER_ROW + 1})")
+    df_raw = pd.read_excel(
+        src,
+        sheet_name=SHEET_NAME,
+        skiprows=HEADER_ROW,
+        header=0,
+        dtype=str,
     )
-    total_in = len(df)
-    logger.info(f"  Total national : {total_in:,} lignes")
+    # Nettoyer les noms de colonnes
+    df_raw.columns = [c.strip() for c in df_raw.columns]
 
-    # Filtre Paris : codes commune commençant par '751'
-    df[COM_COL] = df[COM_COL].astype(str).str.strip().str.zfill(5)
-    df_paris = df[df[COM_COL].str.startswith("751")].copy()
-    total_out = len(df_paris)
+    nb_raw = len(df_raw)
+    logger.info(f"  France entiere : {nb_raw:,} IRIS")
 
-    output_file = bronze_dir / "revenus_iris_raw.parquet"
-    df_paris.to_parquet(output_file, index=False, compression="snappy")
+    # Filtrage Paris : code IRIS commence par '75'
+    if "IRIS" not in df_raw.columns:
+        raise IngestionError(f"Colonne IRIS introuvable parmi : {list(df_raw.columns)}")
 
-    logger.info(f"Revenus Bronze : {total_in:,} → {total_out:,} lignes Paris → {output_file.name}")
-    return {"nb_lignes_in": total_in, "nb_lignes_out": total_out}
+    df_paris = df_raw[df_raw["IRIS"].str.startswith("75", na=False)].copy()
+    nb_paris = len(df_paris)
+    logger.info(f"  Paris (IRIS 75xxx) : {nb_paris:,} IRIS")
+
+    if nb_paris == 0:
+        raise IngestionError("Aucun IRIS Paris trouve — verifier le fichier source")
+
+    # Sauvegarde dans data/raw/ -- Spark feeder.py lira ce CSV directement
+    dst = raw_dir / "revenus_iris_paris.csv"
+    df_paris.to_csv(dst, index=False, encoding="utf-8")
+    logger.info(f"Revenus raw CSV : {nb_paris:,} IRIS Paris -> {dst}")
+
+    return {"nb_france": nb_raw, "nb_paris": nb_paris}
 
 
 if __name__ == "__main__":

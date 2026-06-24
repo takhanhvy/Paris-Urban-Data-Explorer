@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     data_silver_path: str = "data/silver"
     data_gold_path: str = "data/gold"
 
+    # HDFS (Data Lake distribué)
+    hdfs_namenode: str = "hdfs://localhost:9000"
+    hdfs_base_path: str = "hdfs://localhost:9000/urban-data"
+
+    # Spark
+    spark_master: str = "spark://localhost:7077"
+
     # Arrondissements (codes INSEE)
     arrondissements_insee: list[str] = [
         f"7510{i}" if i < 10 else f"751{i}" for i in range(1, 21)

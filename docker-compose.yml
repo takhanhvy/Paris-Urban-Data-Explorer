@@ -1,6 +1,6 @@
 services:
 
-  # ─── PostgreSQL + PostGIS (C1.1) ───────────────────────────────────────────
+  # --- PostgreSQL + PostGIS (C1.1) -------------------------------------------
   postgres:
     image: postgis/postgis:15-3.4
     container_name: ude_postgres
@@ -13,14 +13,14 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql/ddl:/docker-entrypoint-initdb.d  # init auto au premier démarrage
+      - ./sql/ddl:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ude_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ─── MongoDB (C1.2) ────────────────────────────────────────────────────────
+  # --- MongoDB (C1.2) ---------------------------------------------------------
   mongodb:
     image: mongo:7.0
     container_name: ude_mongodb
@@ -37,7 +37,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Kafka + Zookeeper (C2.2) ──────────────────────────────────────────────
+  # --- Kafka + Zookeeper (C2.2) -----------------------------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: ude_zookeeper
@@ -54,11 +54,10 @@ services:
       - zookeeper
     restart: unless-stopped
     ports:
-      - "29092:29092"   # accès depuis le host (pipelines locaux)
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # Deux listeners : INTERNAL (inter-conteneurs) + EXTERNAL (depuis le host)
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
@@ -73,7 +72,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # ─── FastAPI + Dashboard (C2.1) ────────────────────────────────────────────
+  # --- FastAPI + Dashboard (C2.1) ---------------------------------------------
   api:
     build:
       context: .
@@ -89,16 +88,16 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      # Ces variables écrasent .env à l'intérieur du conteneur
-      # (les services se parlent par leur nom Docker, pas localhost)
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       MONGO_URI: mongodb://mongodb:27017
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
     volumes:
-      - ./src:/app/src           # hot-reload du code API
-      - ./dashboard:/app/dashboard  # hot-reload du dashboard
-      - ./data:/app/data         # accès aux fichiers Silver/Gold
+      - ./src:/app/src
+      - ./ingestion:/app/ingestion
+      - ./dashboard:/app/dashboard
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
@@ -107,8 +106,93 @@ services:
       start_period: 10s
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # --- MinIO - Data Lake S3-compatible (C1.3) ---------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: ude_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"    # API S3 (endpoint Spark)
+      - "9001:9001"    # Console web : http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cree le bucket urban-data au premier demarrage (service one-shot)
+  minio-init:
+    image: minio/mc:latest
+    container_name: ude_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set ude http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing ude/urban-data &&
+      echo 'Bucket urban-data OK'
+      "
+    restart: "no"
+
+  # --- Spark Master (C2.2 / C2.3 / C2.4) -------------------------------------
+  # Build custom : Dockerfile.spark etend apache/spark:python3 en pre-installant
+  # hadoop-aws + aws-java-sdk-bundle dans /opt/spark/jars/ (meme classloader que
+  # Hadoop bundle, evite le NoSuchMethodError VectoredReadUtils de --packages).
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: ude_spark_master
+    user: root
+    restart: unless-stopped
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    env_file: .env
+    environment:
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - SPARK_MASTER=spark://spark-master:7077
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    ports:
+      - "8080:8080"    # Spark Master UI
+      - "7077:7077"    # Spark Master port
+    volumes:
+      - ./pipelines/spark:/opt/spark-apps   # scripts feeder/processor/datamart
+      - ./data:/opt/spark-apps/data         # data/raw accessibles au Spark job
+      - spark_ivy_cache:/root/.ivy2         # cache jars Maven (PostgreSQL JDBC)
+
+  spark-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: ude_spark_worker
+    user: root
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    env_file: .env
+    environment:
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_MASTER=spark://spark-master:7077
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    volumes:
+      - ./pipelines/spark:/opt/spark-apps
+      - ./data:/opt/spark-apps/data
+      - spark_ivy_cache:/root/.ivy2
+
 volumes:
   postgres_data:
   mongo_data:
   zookeeper_data:
   kafka_data:
+  minio_data:
+  spark_ivy_cache:

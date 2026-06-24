@@ -5,9 +5,10 @@ Module de streaming temps réel : API Airparif → Kafka → MongoDB.
 ## Architecture
 
 ```
-airparif_producer.py          airparif_consumer.py
-  (asyncio + aiohttp)    →      (confluent-kafka)    →    MongoDB
-  20 appels / heure        topic: airparif.quality        TTL 24h
+airparif_producer.py              airparif_consumer.py
+  (asyncio + aiohttp)    →    →     (confluent-kafka)    →    MongoDB
+  20 appels / heure        Kafka      topic: airparif.quality    TTL 24h
+                           topic
 ```
 
 ## Fichiers
@@ -15,11 +16,11 @@ airparif_producer.py          airparif_consumer.py
 | Fichier | Rôle |
 |---------|------|
 | `airparif_producer.py` | Appelle les 20 endpoints Airparif en async, publie dans Kafka |
-| `airparif_consumer.py` | Consomme le topic Kafka, stocke dans MongoDB avec index TTL |
+| `airparif_consumer.py` | Consomme le topic Kafka, écrit dans MongoDB avec index TTL |
 
 ## Pourquoi Kafka ?
 
-Le log Kafka permet de **rejouer** les données et de **découpler** la collecte de la persistance. Si MongoDB est temporairement indisponible, les messages restent dans Kafka et sont consommés au redémarrage.
+Le log Kafka permet de **rejouer** les messages et de **découpler** la collecte de la persistance. Si MongoDB est temporairement indisponible, les messages restent dans Kafka (rétention 24h) et sont consommés au redémarrage — sans perte de données.
 
 ## Techno
 
@@ -27,19 +28,20 @@ Le log Kafka permet de **rejouer** les données et de **découpler** la collecte
 
 ## Dépendances
 
-- `src/common/config.py` — API key Airparif, bootstrap servers Kafka
-- Service Kafka opérationnel (`docker-compose up kafka`)
-- Service MongoDB opérationnel (`docker-compose up mongodb`)
+- `src/common/config.py` — clé API Airparif, bootstrap servers Kafka, URI MongoDB
+- Service Kafka opérationnel (`docker compose up -d kafka`)
+- Service MongoDB opérationnel (`docker compose up -d mongodb`)
 
 ## Exécution
 
-```bash
-# Terminal 1 — Producer
+```powershell
+# Terminal 1 — Producer (appelle Airparif → Kafka)
 python -m ingestion.streaming.airparif_producer
 
-# Terminal 2 — Consumer
+# Terminal 2 — Consumer (Kafka → MongoDB)
 python -m ingestion.streaming.airparif_consumer
-
-# ou
-make ingest-stream
 ```
+
+## Alternative batch
+
+`ingestion/api/feeder_airparif_batch.py` injecte les données Airparif directement dans MongoDB sans Kafka — utile pour le premier chargement ou les tests.

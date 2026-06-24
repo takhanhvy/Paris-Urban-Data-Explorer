@@ -1,38 +1,40 @@
 # orchestration — Orchestration des pipelines (C2.4)
 
-Planification et monitoring de l'exécution des pipelines via Apache Airflow.
+Planification et enchaînement des jobs Spark.
 
-## Structure cible (Phase 2–3)
+## Exécution actuelle (spark-submit)
 
+Le pipeline complet est déclenché manuellement via les scripts dans `pipelines/spark/submit/` :
+
+```powershell
+# Étape 1 — Feeder : sources locales → MinIO /raw
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh all
+
+# Étape 2 — Processor : MinIO /raw → MinIO /silver
+docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh all
+
+# Étape 3 — Datamart : MinIO /silver → PostgreSQL
+docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh
 ```
-orchestration/
-└── airflow/
-    └── dags/
-        ├── dag_batch_daily.py      # Ingestion + Silver + Gold (quotidien)
-        ├── dag_feeder_dvf.py       # Ingestion DVF (annuel)
-        ├── dag_silver_all.py       # Tous les processors Silver
-        └── dag_gold.py             # Agrégation Gold + chargement BDD
-```
 
-## Fréquences
+Les scripts lisent leur configuration depuis les variables d'environnement du conteneur (MinIO endpoint, credentials Spark, JDBC URL) — aucun chemin codé en dur.
 
-| DAG | Fréquence | Sources |
-|-----|-----------|---------|
-| `dag_batch_daily` | Quotidien 2h | Logements sociaux API |
-| `dag_feeder_dvf` | Annuel (manuel) | DVF CSV |
-| `dag_silver_all` | Après batch | Tous les Silver |
-| `dag_gold` | Après Silver | Gold + BDD |
+## Fréquences recommandées
 
-## Mesure de performance (C2.4)
+| Job | Fréquence | Déclencheur |
+|-----|-----------|-------------|
+| `feeder.sh logements_sociaux` | Mensuel | Mise à jour API Paris OpenData |
+| `feeder.sh dvf` | Annuel | Publication DVF (juillet N+1) |
+| `feeder.sh all` + `processor.sh all` + `datamart.sh` | À la demande | Rechargement complet |
 
-Chaque tâche Airflow appelle un opérateur Python décoré avec `@log_pipeline_run`.
-Les métriques (durée, nb_lignes, volume_mb) sont écrites dans `ude.pipeline_runs` (PostgreSQL).
+## Phase 2 — Orchestrateur cible
 
-## Techno
+Remplacement des scripts manuels par un orchestrateur (Prefect ou Airflow) avec :
+- DAG `batch_dvf_annual` : feeder DVF → processor → datamart
+- DAG `batch_logements_monthly` : feeder logements sociaux → processor → datamart
+- Alertes sur échec, retry automatique
+- Visibilité des runs dans l'UI Prefect / Airflow
 
-`Apache Airflow 2.9` (image Docker officielle `apache/airflow:2.9.2`)
+## Techno actuelle
 
-## Dépendances
-
-- Services PostgreSQL, MongoDB, Kafka opérationnels
-- Pipelines Silver et Gold implémentés (Phase 2)
+Scripts `bash` + `spark-submit` + Docker Compose

@@ -1,5 +1,5 @@
 """
-Utilitaires partagés : décorateur pipeline_run, helpers geo, etc.
+Utilitaires partagés : décorateur log_pipeline_run.
 """
 
 import time
@@ -56,44 +56,3 @@ def log_pipeline_run(pipeline_name: str, source: str, layer: str):
         return wrapper
     return decorator
 
-
-def insee_to_arrondissement(code_insee: str) -> int | None:
-    """
-    Convertit un code INSEE parisien en numéro d'arrondissement (1–20).
-
-    Exemples :
-        '75101' → 1
-        '75120' → 20
-        '75116' → 16
-    """
-    if not code_insee or len(code_insee) != 5 or not code_insee.startswith("751"):
-        return None
-    try:
-        arr = int(code_insee[3:])
-        return arr if 1 <= arr <= 20 else None
-    except ValueError:
-        return None
-
-
-def code_postal_to_arrondissement(code_postal) -> int | None:
-    """
-    Convertit un code postal parisien en numéro d'arrondissement.
-
-    Exemples :
-        '75001' → 1
-        '75016' → 16
-    """
-    import math
-    if code_postal is None:
-        return None
-    # Gère les NaN (float) que Pandas peut passer
-    if isinstance(code_postal, float) and math.isnan(code_postal):
-        return None
-    code_postal = str(code_postal).strip()
-    if len(code_postal) != 5 or not code_postal.startswith("750"):
-        return None
-    try:
-        arr = int(code_postal[3:])
-        return arr if 1 <= arr <= 20 else None
-    except ValueError:
-        return None

@@ -1,0 +1,37 @@
+# Dockerfile.spark
+# -----------------------------------------------------------------
+# Etend apache/spark:python3 (Spark 4.1.2 + Scala 2.13 + Java 21)
+# en pre-installant hadoop-aws + aws-java-sdk-bundle dans
+# /opt/spark/jars/ -- meme classloader que Hadoop bundle.
+#
+# Pourquoi pas --packages ?
+#   --packages ajoute les jars avec priorite haute. Quand hadoop-aws
+#   est externe, S3AInputStream appelle VectoredReadUtils avec une
+#   signature differente de celle du Hadoop interne --> NoSuchMethodError.
+#   En copiant les jars dans /opt/spark/jars/, ils s'integrent dans le
+#   meme classloader et la bonne version est toujours resolue.
+# -----------------------------------------------------------------
+FROM apache/spark:python3
+
+USER root
+
+# Spark 4.1.2 embarque Hadoop 3.4.2 sous forme "thin client" :
+#   /opt/spark/jars/hadoop-client-api-3.4.2.jar
+#   /opt/spark/jars/hadoop-client-runtime-3.4.2.jar  (fat jar)
+# Il n'y a PAS de hadoop-common-*.jar separe.
+#
+# hadoop-aws:3.4.0 + hadoop-aws:3.4.1 appelaient VectoredReadUtils avec
+# une signature absente dans Hadoop 3.4.2 -> NoSuchMethodError.
+# Solution : hadoop-aws:3.4.2 (version exacte = version bundlee dans l'image).
+# hadoop-aws:3.4.2 utilise AWS SDK v2 (software.amazon.awssdk:bundle:2.29.52)
+# Source : hadoop-project-3.4.2.pom ligne 210 : aws-java-sdk-v2.version=2.29.52
+# NE PAS utiliser aws-java-sdk-bundle (SDK v1 com.amazonaws) qui causerait
+# ClassNotFoundException: software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
+RUN curl -fsSL \
+      "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar" \
+      -o "/opt/spark/jars/hadoop-aws-3.4.2.jar" && \
+    curl -fsSL \
+      "https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.29.52/bundle-2.29.52.jar" \
+      -o "/opt/spark/jars/aws-sdk-v2-bundle-2.29.52.jar" && \
+    echo "[Dockerfile.spark] Jars S3A installes OK :" && \
+    ls -lh /opt/spark/jars/hadoop-aws-3.4.2.jar /opt/spark/jars/aws-sdk-v2-bundle-2.29.52.jar

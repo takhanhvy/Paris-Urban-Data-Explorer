@@ -1,0 +1,548 @@
+{
+  "date": "2026-06-24",
+  "nb_ok": 20,
+  "nb_erreurs": 0,
+  "arrondissements": [
+    {
+      "insee": "75101",
+      "arrondissement": 1,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75101": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75102",
+      "arrondissement": 2,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75102": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75103",
+      "arrondissement": 3,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75103": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75104",
+      "arrondissement": 4,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75104": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75105",
+      "arrondissement": 5,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75105": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Dégradé",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Dégradé"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75106",
+      "arrondissement": 6,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75106": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Dégradé",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Dégradé"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75107",
+      "arrondissement": 7,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75107": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75108",
+      "arrondissement": 8,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75108": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75109",
+      "arrondissement": 9,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75109": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75110",
+      "arrondissement": 10,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75110": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75111",
+      "arrondissement": 11,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75111": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75112",
+      "arrondissement": 12,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75112": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75113",
+      "arrondissement": 13,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75113": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Bon",
+            "o3": "Dégradé",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Dégradé"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75114",
+      "arrondissement": 14,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75114": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Dégradé",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Dégradé"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75115",
+      "arrondissement": 15,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75115": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Dégradé",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Dégradé"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75116",
+      "arrondissement": 16,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75116": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75117",
+      "arrondissement": 17,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75117": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75118",
+      "arrondissement": 18,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75118": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Bon",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75119",
+      "arrondissement": 19,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75119": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    },
+    {
+      "insee": "75120",
+      "arrondissement": 20,
+      "fetched_at": "2026-06-24",
+      "data": {
+        "75120": [
+          {
+            "date": "2026-06-24",
+            "no2": "Bon",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          },
+          {
+            "date": "2026-06-25",
+            "no2": "Moyen",
+            "o3": "Mauvais",
+            "pm10": "Moyen",
+            "pm25": "Moyen",
+            "so2": "Bon",
+            "indice": "Mauvais"
+          }
+        ]
+      }
+    }
+  ],
+  "erreurs": []
+}
