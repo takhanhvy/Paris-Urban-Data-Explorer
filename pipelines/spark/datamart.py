@@ -36,7 +36,7 @@ import argparse
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.window import Window
+
 
 
 # ─── Session Spark ────────────────────────────────────────────────────────────
@@ -202,49 +202,6 @@ def _agg_revenus(df_rev: DataFrame) -> DataFrame:
     )
 
 
-# ─── Score attractivité ───────────────────────────────────────────────────────
-
-def _compute_score(df: DataFrame) -> DataFrame:
-    """
-    Score attractivité 0–100 (business rule normalisée Min-Max) :
-      + revenus élevés → score+
-      + peu de délinquance → score+
-      + logements sociaux (diversité) → score+ (jusqu'à 20%, puis neutre)
-      - prix élevés → score- (accessibilité)
-    """
-    # Normalisation min-max sur la fenêtre complète
-    w = Window.partitionBy("annee")
-
-    def minmax(col_name, inverse=False):
-        mn = F.min(col_name).over(w)
-        mx = F.max(col_name).over(w)
-        norm = (F.col(col_name) - mn) / (mx - mn + F.lit(1e-9))
-        return (F.lit(1) - norm) if inverse else norm
-
-    return (
-        df
-        .withColumn("_s_revenu",       minmax("revenu_median_arr"))
-        .withColumn("_s_del",          minmax("taux_delinquance_global", inverse=True))
-        .withColumn("_s_prix",         minmax("prix_m2_median",          inverse=True))
-        .withColumn("_s_logements",    F.least(
-            F.coalesce(F.col("nb_logements_sociaux"), F.lit(0)).cast("double") /
-            (F.coalesce(F.col("nb_transactions"), F.lit(1)).cast("double") * 5 + 1),
-            F.lit(1.0)
-        ))
-        .withColumn(
-            "score_attractivite",
-            F.round(
-                (F.col("_s_revenu") * 35 +
-                 F.col("_s_del")    * 30 +
-                 F.col("_s_prix")   * 25 +
-                 F.col("_s_logements") * 10),
-                2
-            )
-        )
-        .drop("_s_revenu", "_s_del", "_s_prix", "_s_logements")
-    )
-
-
 # ─── Écriture JDBC ────────────────────────────────────────────────────────────
 
 def _write_jdbc(df: DataFrame, jdbc_url: str, user: str, password: str,
@@ -387,9 +344,6 @@ def main() -> None:
         .join(agg_del, ["arrondissement", "annee"], "left")
         .join(agg_rev, ["arrondissement"],           "left")
     )
-
-    # ── Score attractivité (business rule) ────────────────────────────────────
-    df_gold = _compute_score(df_gold)
 
     # ── Libérer les caches sources ────────────────────────────────────────────
     df_dvf.unpersist()

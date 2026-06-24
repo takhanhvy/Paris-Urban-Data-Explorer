@@ -8,7 +8,7 @@ Trois jobs PySpark qui implémentent le pattern Medallion complet : ingestion de
 |---------|------|
 | `feeder.py` | Lit les sources locales (`data/raw/`) → écrit en Parquet partitionné dans MinIO `s3a://urban-data/bronze/` |
 | `processor.py` | Lit bronze MinIO → nettoie, caste, filtre Paris → écrit dans MinIO `s3a://urban-data/silver/` |
-| `datamart.py` | Lit silver MinIO → agrège, calcule le score attractivité → écrit dans PostgreSQL `ude.indicateurs_gold` via JDBC |
+| `datamart.py` | Lit silver MinIO → agrège par arrondissement × année → écrit dans PostgreSQL `ude.indicateurs_gold` via JDBC |
 | `submit/feeder.sh` | Script `spark-submit` pour feeder.py — paramètres source, date, chemins |
 | `submit/processor.sh` | Script `spark-submit` pour processor.py |
 | `submit/datamart.sh` | Script `spark-submit` pour datamart.py |
@@ -17,23 +17,23 @@ Trois jobs PySpark qui implémentent le pattern Medallion complet : ingestion de
 
 ```powershell
 # Feeder : toutes les sources
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh all
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh all
 
 # Feeder : source spécifique avec date
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh dvf 2026-06-24
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh logements_sociaux 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/feeder.sh logements_sociaux 2026-06-24
 
 # Processor : toutes les sources
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh all
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh all
 
 # Processor : source spécifique
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-apps/submit/processor.sh dvf 2026-06-24
 
 # Datamart : toutes les années
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh
+docker exec ude_spark_master bash /opt/spark-apps/submit/datamart.sh
 
 # Datamart : année spécifique
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024
+docker exec ude_spark_master bash /opt/spark-apps/submit/datamart.sh 2024
 ```
 
 ## Optimisations (C2.4)

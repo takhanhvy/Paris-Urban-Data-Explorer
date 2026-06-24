@@ -238,7 +238,6 @@ async def get_metrics(
             g.prix_m2_median,
             g.nb_transactions                   AS transactions_total,
             g.revenu_median_arr                 AS revenu_median,
-            g.score_attractivite,
             g.taux_delinquance_global,
             g.taux_delinquance_pmille,
             a.densite_population,
@@ -316,7 +315,6 @@ async def get_metrics(
             "tx_logement_sociaux": simple_avg("tx_logement_sociaux"),
             "revenu_median": w_avg("revenu_median"),
             "transactions_total": total_tx,
-            "score_attractivite": simple_avg("score_attractivite"),
             "taux_delinquance_global": simple_avg("taux_delinquance_global"),
             "taux_delinquance_pmille": simple_avg("taux_delinquance_pmille"),
             "air_quality_global": _get_air_quality(None),
@@ -534,8 +532,7 @@ async def get_data_table(
                 ELSE 0
             END AS tx_logement_sociaux,
             g.revenu_median_arr,
-            a.densite_population,
-            g.score_attractivite
+            a.densite_population
         FROM ude.indicateurs_gold g
         JOIN ude.arrondissements a USING (arrondissement)
         LEFT JOIN prev p USING (arrondissement)
@@ -558,7 +555,6 @@ async def get_data_table(
             "tx_logement_sociaux": _safe_float(row["tx_logement_sociaux"]),
             "revenu_median_arr": _safe_float(row["revenu_median_arr"]),
             "densite_population": _safe_float(row["densite_population"]),
-            "score_attractivite": _safe_float(row["score_attractivite"]),
         })
 
     return {"year": year, "data": data, "count": len(data)}

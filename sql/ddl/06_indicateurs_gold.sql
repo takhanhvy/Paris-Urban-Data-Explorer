@@ -51,9 +51,6 @@ CREATE TABLE IF NOT EXISTS ude.indicateurs_gold (
     part_surf_80_120            NUMERIC(5,2),
     part_surf_gt120             NUMERIC(5,2),
 
-    -- Indicateur composite (score 0–100 calculé par business rules)
-    score_attractivite          NUMERIC(5,2),
-
     computed_at                 TIMESTAMP DEFAULT NOW(),
 
     UNIQUE (arrondissement, annee)
@@ -63,4 +60,3 @@ CREATE INDEX IF NOT EXISTS idx_gold_arr    ON ude.indicateurs_gold(arrondissemen
 CREATE INDEX IF NOT EXISTS idx_gold_annee  ON ude.indicateurs_gold(annee);
 
 COMMENT ON TABLE ude.indicateurs_gold IS 'Table de faits Gold : indicateurs agrégés par arrondissement × année, prêts pour l API';
-COMMENT ON COLUMN ude.indicateurs_gold.score_attractivite IS 'Score composite 0–100 combinant prix, logements sociaux, délinquance, revenus';

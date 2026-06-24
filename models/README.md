@@ -28,21 +28,11 @@ Clé composite : `(arrondissement, annee)`. Alimentée exclusivement par `pipeli
 | `taux_delinquance_global` | Délinquance parquet | Indicateur synthétique |
 | `revenu_median_arr` | FiLoSoFi IRIS 2018 | Revenu médian par UC, agrégé depuis la maille IRIS |
 | `indice_gini_arr` | FiLoSoFi IRIS 2018 | Indice de Gini (inégalités intra-arrondissement) |
-| `score_attractivite` | Calculé par Spark | Score 0–100 Min-Max normalisé |
-
-## Score attractivité
-
-Calculé dans `datamart.py` par normalisation Min-Max sur fenêtre annuelle (`Window.partitionBy("annee")`). Formule :
-
-```
-score = revenu_norm × 35 + (1 - delinquance_norm) × 30 + (1 - prix_norm) × 25 + logements_norm × 10
-```
-
 ## Requêtes typiques
 
 ```sql
 -- Carte choroplèthe 2024
-SELECT arrondissement, prix_m2_median, score_attractivite
+SELECT arrondissement, prix_m2_median
 FROM ude.indicateurs_gold WHERE annee = 2024;
 
 -- Timeline 7e arrondissement

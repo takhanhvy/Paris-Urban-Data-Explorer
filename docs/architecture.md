@@ -75,7 +75,7 @@ flowchart TD
 
 **processor.py** lit la partition bronze du jour, applique les transformations métier (cast types, filtre géographique Paris, calcul `prix_m2`, extraction du numéro d'arrondissement, filtrage des valeurs aberrantes DVF entre 500 et 80 000 €/m²), et écrit en silver. `persist(MEMORY_AND_DISK)` après nettoyage pour réutilisation.
 
-**datamart.py** joint les cinq sources silver, calcule les agrégats par arrondissement × année (`percentile_approx` pour la médiane, window function Min-Max pour le score attractivité), et écrit dans PostgreSQL via JDBC (`batchsize=10000`). `cache()` sur chaque source silver. La source `residences_principales` alimente `ude.arrondissements.nb_residences_principales` via JVM bridge (UPDATE direct, hors JDBC Spark).
+**datamart.py** joint les cinq sources silver, calcule les agrégats par arrondissement × année (`percentile_approx` pour la médiane), et écrit dans PostgreSQL via JDBC (`batchsize=10000`). `cache()` sur chaque source silver. La source `residences_principales` alimente `ude.arrondissements.nb_residences_principales` via JVM bridge (UPDATE direct, hors JDBC Spark).
 
 ## Mapping compétences ↔ briques techniques
 

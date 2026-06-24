@@ -528,9 +528,6 @@
             const variation = typeof row.variation === 'number'
                 ? `<span style="color:${row.variation >= 0 ? '#27ae60' : '#e74c3c'}">${row.variation >= 0 ? '+' : ''}${row.variation.toFixed(1)}%</span>`
                 : '—';
-            const score = typeof row.score_attractivite === 'number'
-                ? `<span style="color:${scoreColor(row.score_attractivite)};font-weight:600">${row.score_attractivite.toFixed(0)}/100</span>`
-                : '—';
             return `
                 <tr>
                     <td><strong>${row.nom || `Arr. ${row.arrondissement}`}</strong></td>
@@ -540,16 +537,9 @@
                     <td>${row.tx_logement_sociaux != null ? `${row.tx_logement_sociaux.toFixed(1)}%` : '—'}</td>
                     <td>${row.revenu_median_arr ? formatCurrency(row.revenu_median_arr) : '—'}</td>
                     <td>${row.densite_population != null ? `${Math.round(row.densite_population).toLocaleString('fr-FR')} hab/km²` : '—'}</td>
-                    <td>${score}</td>
                 </tr>
             `;
         }).join('');
-    }
-
-    function scoreColor(score) {
-        if (score >= 70) return '#27ae60';
-        if (score >= 50) return '#f39c12';
-        return '#e74c3c';
     }
 
     // ─── Chart initializers ───────────────────────────────────────────────────

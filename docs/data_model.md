@@ -80,9 +80,6 @@ revenu_median_arr         NUMERIC(10,2)
 indice_gini_arr           NUMERIC(6,4)
 rapport_interdecile_arr   NUMERIC(6,2)
 
--- Score composite
-score_attractivite        NUMERIC(5,2)           -- 0–100, Min-Max normalisé
-
 computed_at  TIMESTAMP DEFAULT NOW()
 ```
 
@@ -204,15 +201,3 @@ Un document par arrondissement. L'API `/api/metrics` y lit le label du jour pour
 
 ---
 
-## 4. Score attractivité — calcul Spark
-
-Calculé dans `datamart.py` par normalisation Min-Max sur fenêtre `Window.partitionBy("annee")`.
-
-```
-score = revenu_norm × 35
-      + (1 - delinquance_norm) × 30
-      + (1 - prix_norm) × 25
-      + logements_norm × 10
-```
-
-Score dans [0, 100]. Un score élevé (>70) signifie revenus hauts, faible délinquance, prix accessibles et bonne mixité sociale.
