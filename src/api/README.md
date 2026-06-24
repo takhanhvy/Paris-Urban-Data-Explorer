@@ -1,50 +1,46 @@
 # src/api — API FastAPI (C2.1)
 
-API REST interopérable, point d'entrée du dashboard et des clients externes.
+API REST du projet, point d'entrée unique pour le dashboard et les clients externes. Servie sur le port 8000 par le conteneur `ude_api`.
 
 ## Fichiers
 
 | Fichier | Rôle |
 |---------|------|
-| `main.py` | Application FastAPI, middleware CORS, health check, montage des routers |
-| `routers/dashboard.py` | Tous les endpoints métier (arrondissements, métriques, qualité air) |
+| `main.py` | Application FastAPI : middleware CORS, auth X-API-Key, montage du router, connexions BDD (singletons), health check, montage des fichiers statiques du dashboard |
+| `routers/dashboard.py` | Tous les endpoints métier |
 
-## Endpoints principaux
+## Endpoints
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| GET | `/health` | Health check (pas d'auth) |
-| GET | `/dashboard` | Dashboard HTML (MapLibre) |
-| GET | `/api/metrics` | Métriques gold par arrondissement × année (PostgreSQL) |
-| GET | `/api/arrondissements` | Géométries GeoJSON des 20 arrondissements (PostGIS) |
-| GET | `/api/air-quality` | Qualité de l'air live (MongoDB) |
+| GET | `/health` | Health check (sans auth) |
+| GET | `/dashboard/` | Dashboard HTML (MapLibre GL JS) |
+| GET | `/api/metrics` | Métriques gold par arrondissement × année — source : `ude.indicateurs_gold` (PostgreSQL) |
+| GET | `/api/map/prices` | Prix médian/m² par arrondissement pour la carte choroplèthe |
+| GET | `/api/typology` | Répartition typologique des transactions DVF (appartements, maisons, etc.) |
+| GET | `/api/surfaces` | Distribution des surfaces par arrondissement |
+| GET | `/api/price/history` | Évolution temporelle des prix 2020–2025 |
+| GET | `/api/data/table` | Tableau de données complet pour le dashboard |
 
-## Drivers
+Les données de qualité de l'air proviennent de MongoDB (`urban_data_nosql.air_quality`) et sont injectées dans la réponse `/api/metrics` pour l'arrondissement demandé.
 
-- PostgreSQL : `pg8000` (pur Python, pas de dépendance libpq)
+## Drivers BDD
+
+- PostgreSQL : `pg8000` (pur Python, sans dépendance libpq) via SQLAlchemy 2.0 (`postgresql+pg8000://`)
 - MongoDB : `pymongo`
 
 ## Sécurité
 
-- CORS ouvert pour le dashboard JS (origines configurables via `.env`)
-- Validation des paramètres via Pydantic v2
+- Auth par header `X-API-Key` sur tous les endpoints (sauf `/health`)
+- CORS configurable via `.env` (`ALLOWED_ORIGINS`)
+- Validation stricte des paramètres via Pydantic v2
 
-## Docs auto-générées
+## Documentation auto-générée
 
 - SwaggerUI : `http://localhost:8000/docs`
 - ReDoc : `http://localhost:8000/redoc`
 
-## Techno
-
-`FastAPI 0.111`, `Pydantic v2`, `uvicorn`, `pg8000`, `pymongo`
-
-## Lancement (hors Docker)
-
-```bash
-uvicorn src.api.main:app --reload --port 8000
-```
-
-Via Docker (recommandé) :
+## Relancer l'API
 
 ```powershell
 docker compose restart api

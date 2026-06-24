@@ -5,23 +5,34 @@ __pycache__/
 .venv/
 venv/
 env/
+*.egg-info/
+
+# ─── Variables d'environnement ──────────────────────────────────────────────
 .env
 
-# ─── Données sensibles (ne jamais versionner) ───────────────────────────────
-data/raw/
+# ─── Données (ne jamais versionner les données brutes ni intermédiaires) ────
+data/bronze/
+data/silver/
+data/gold/
 data/sandbox/
-*.csv
+
+# data/raw/ contient les fichiers sources — à exclure si volumineux
+# Décommenter si les CSV DVF ne doivent pas être versionnés :
+# data/raw/
+
+# ─── Parquet généré (sauf dossier sql/) ─────────────────────────────────────
 *.parquet
-*.xlsx
-*.xls
 
 # ─── Secrets ────────────────────────────────────────────────────────────────
 config/secrets.yaml
-.env
 
 # ─── Logs & métriques ───────────────────────────────────────────────────────
-monitoring/logs/*.log
+monitoring/logs/
 *.log
+
+# ─── Spark ──────────────────────────────────────────────────────────────────
+spark-warehouse/
+.ivy2/
 
 # ─── Docker ─────────────────────────────────────────────────────────────────
 .docker/
@@ -39,7 +50,7 @@ Thumbs.db
 # ─── Notebooks checkpoints ──────────────────────────────────────────────────
 .ipynb_checkpoints/
 
-# ─── Build ──────────────────────────────────────────────────────────────────
+# ─── Build / dist ───────────────────────────────────────────────────────────
 dist/
 build/
-*.egg-info/
+node_modules/

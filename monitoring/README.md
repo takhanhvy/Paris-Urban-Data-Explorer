@@ -1,41 +1,47 @@
-# monitoring — Métriques et logs
+# monitoring — Métriques et logs (C2.4)
 
-Suivi des performances des pipelines et de la santé des services.
+Suivi de la santé des services et des performances des pipelines.
 
 ## Structure
 
 ```
 monitoring/
-└── logs/          → ude.log (JSON rotatif, config dans config/logging.yaml)
+└── logs/
+    └── ude.log    ← logs JSON rotatifs (10 MB, 5 backups)
 ```
 
 ## Logs applicatifs
 
-Les logs JSON sont écrits dans `monitoring/logs/ude.log` (rotatif 10 MB, 5 backups) par les feeders API (`ingestion/api/`). Format JSON pour intégration avec des outils d'analyse (Loki, ELK, etc.).
+Les feeders Python (`ingestion/api/`) écrivent des logs JSON dans `monitoring/logs/ude.log` via structlog. Configuration dans `config/logging.yaml`.
 
-Le décorateur `@log_pipeline_run` (dans `src/common/utils.py`) loggue automatiquement pour chaque run :
+Le décorateur `@log_pipeline_run` (`src/common/utils.py`) enregistre automatiquement pour chaque run :
+
 - `pipeline_name`, `source`, `layer`
 - `started_at`, `duration_s`
 - `statut` : `success` / `failed`
-- Erreur complète en cas d'échec
+- traceback complet en cas d'échec
+
+Les runs sont aussi persistés dans `ude.pipeline_runs` (PostgreSQL) pour consultation SQL.
 
 ## Performances Spark
 
-Les jobs Spark (`feeder.py`, `processor.py`, `datamart.py`) loggent directement dans stdout et sont visibles dans :
-- **Spark UI** → `http://localhost:8080` : jobs, stages, durées, cache Storage
+Les jobs Spark (`feeder.py`, `processor.py`, `datamart.py`) loggent dans stdout et sont visibles via :
+
+- **Spark UI** : `http://localhost:8080` — onglets Jobs, Stages, Storage (cache/persist), SQL
 - Logs Docker : `docker compose logs -f ude_spark_master`
 
-Exemple de métriques affichées par le Spark datamart :
+## Health check API
+
+```powershell
+Invoke-RestMethod "http://localhost:8000/health"
 ```
-[datamart] Silver/transactions : 523 847 lignes (cache activé)
-[datamart] ✓ 100 lignes écrites dans ude.indicateurs_gold (mode=overwrite)
-[datamart] Pipeline terminé.
-```
 
-## Table ude.pipeline_runs
+Retourne `{"status": "ok"}` si l'API et les connexions BDD sont opérationnelles.
 
-La DDL `sql/ddl/07_pipeline_runs.sql` crée la table de monitoring PostgreSQL. L'alimentation automatique depuis `@log_pipeline_run` de \src\common\utils.py.
+## Interfaces de monitoring
 
-## Techno
-
-`structlog`, `logging` (stdlib)
+| Interface | URL | Description |
+|-----------|-----|-------------|
+| Spark UI | http://localhost:8080 | Jobs, stages, cache Storage, exécuteurs |
+| API health | http://localhost:8000/health | Statut API + connexions |
+| MinIO console | http://localhost:9001 | Exploration buckets bronze/silver |

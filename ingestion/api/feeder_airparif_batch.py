@@ -1,9 +1,9 @@
 """
-Feeder Airparif — API temps reel vers data/bronze/
+Feeder Airparif — API temps reel vers data/raw/
 
 Appelle l'API Airparif pour les 20 arrondissements parisiens (INSEE 75101-75120),
 recupere l'indice de qualite de l'air du jour et du lendemain,
-sauvegarde en JSON date dans data/bronze/air_quality/.
+sauvegarde en JSON date dans data/raw/ (landing zone commune à toutes les sources).
 
 C'est la seule source temps reel / live du projet (competence C2.2 streaming).
 Retry automatique via tenacity.
@@ -70,14 +70,14 @@ def _fetch_commune(insee: str, api_key: str) -> dict:
     return response.json()
 
 
-@log_pipeline_run("feeder_airparif_batch", "air_quality", "bronze")
+@log_pipeline_run("feeder_airparif_batch", "air_quality", "raw")
 def ingest_airparif(
-    bronze_path: str | None = None,
+    raw_path: str | None = None,
     target_date: str | None = None,
 ) -> dict:
     """
     Fetche la qualite de l'air pour les 20 arrondissements.
-    Sauvegarde : data/bronze/air_quality/airparif_YYYY-MM-DD.json
+    Sauvegarde : data/raw/airparif_YYYY-MM-DD.json (lu ensuite par Spark feeder.py)
     """
     api_key = settings.airparif_api_key
     if not api_key:
@@ -86,8 +86,8 @@ def ingest_airparif(
             "  Ajouter : AIRPARIF_API_KEY=0a0b677e-d8c9-1057-8172-0e8bd46793af"
         )
 
-    bronze_dir = Path(bronze_path or settings.data_bronze_path) / "air_quality"
-    bronze_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir = Path(raw_path or settings.data_raw_path)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     run_date = target_date or date.today().isoformat()
     results = []
@@ -116,7 +116,7 @@ def ingest_airparif(
     nb_ok = len(results)
     nb_err = len(errors)
 
-    dst = bronze_dir / f"airparif_{run_date}.json"
+    dst = raw_dir / f"airparif_{run_date}.json"
     payload = {
         "date": run_date,
         "nb_ok": nb_ok,
@@ -127,7 +127,7 @@ def ingest_airparif(
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
-    logger.info(f"Airparif Bronze : {nb_ok}/20 arrondissements -> {dst}")
+    logger.info(f"Airparif raw : {nb_ok}/20 arrondissements -> {dst}")
     if nb_err:
         logger.warning(f"  {nb_err} echecs : {[e['insee'] for e in errors]}")
 

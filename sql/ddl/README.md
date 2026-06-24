@@ -1,34 +1,30 @@
 # sql/ddl — Schéma relationnel PostgreSQL (C1.1)
 
-Scripts DDL exécutés automatiquement au premier démarrage via `docker-entrypoint-initdb.d/`.
+Scripts DDL du schéma `ude` sur PostgreSQL 15 + PostGIS 3.4. Ils sont exécutés automatiquement au premier démarrage du conteneur via `docker-entrypoint-initdb.d/`. Tous les scripts sont idempotents (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`).
 
-## Fichiers
+## Fichiers et ordre d'exécution
 
-| Fichier | Table | Description |
-|---------|-------|-------------|
-| `00_init.sql` | — | Active PostGIS, crée le schéma `ude` |
-| `01_arrondissements.sql` | `ude.arrondissements` | Table de référence (20 arrondissements) — géométrie PostGIS, superficie_km2, population_2020, **densite_population** |
-| `02_transactions_dvf.sql` | `ude.transactions_dvf` | Transactions DVF filtrées Paris, index géospatial |
-| `03_logements_sociaux.sql` | `ude.logements_sociaux` | Logements sociaux financés (PLAI/PLUS/PLS) |
-| `04_delinquance.sql` | `ude.delinquance` | Faits de délinquance par arrondissement × année × indicateur |
-| `05_revenus_iris.sql` | `ude.revenus_iris` | Revenus FiLoSoFi 2018 à la maille IRIS |
-| `06_indicateurs_gold.sql` | `ude.indicateurs_gold` | Table de faits Gold — agrégats prêts pour l'API (alimentée par Spark datamart.py) |
-| `07_pipeline_runs.sql` | `ude.pipeline_runs` | Scaffolding monitoring pipelines (C2.4) — structure prête, alimentation Phase 2 |
+| Ordre | Fichier | Table créée | Description |
+|-------|---------|-------------|-------------|
+| 00 | `00_init.sql` | — | Active l'extension PostGIS, crée le schéma `ude` |
+| 01 | `01_arrondissements.sql` | `ude.arrondissements` | Dimension géographique : 20 arrondissements, géométrie PostGIS WGS84, superficie, population, densité |
+| 02 | `02_transactions_dvf.sql` | `ude.transactions_dvf` | Transactions immobilières DVF filtrées Paris, index géospatial sur `geom` |
+| 03 | `03_logements_sociaux.sql` | `ude.logements_sociaux` | Logements sociaux financés (volumes PLAI/PLUS/PLS par arrondissement et année) |
+| 04 | `04_delinquance.sql` | `ude.delinquance` | Faits de délinquance par arrondissement × année × indicateur, taux pour mille |
+| 05 | `05_revenus_iris.sql` | `ude.revenus_iris` | Revenus FiLoSoFi 2018 à la maille IRIS (déciles, Gini, revenu médian) |
+| 06 | `06_indicateurs_gold.sql` | `ude.indicateurs_gold` | Table de faits Gold — agrégats prêts pour l'API, alimentée exclusivement par Spark `datamart.py` via JDBC |
+| 07 | `07_pipeline_runs.sql` | `ude.pipeline_runs` | Historique des runs de pipeline (monitoring C2.4) |
 
-## Notes importantes
+## Notes
 
-- `ude.arrondissements.densite_population` est calculée par **Spark processor.py** (`population_totale / superficie_km2`) et stockée ici — l'API la lit directement sans recalcul.
-- `ude.indicateurs_gold` est alimentée exclusivement par **Spark datamart.py** via JDBC.
-- `ude.pipeline_runs` : structure DDL créée, alimentation depuis `@log_pipeline_run` de src\common\utils.py.
+- `ude.indicateurs_gold` est alimentée par `pipelines/spark/datamart.py` en mode `overwrite` via JDBC. Ne pas y insérer manuellement.
+- `ude.arrondissements.densite_population` est calculée par `processor.py` (`population_totale / superficie_km2`) et stockée ici — l'API la lit directement.
+- `ude.pipeline_runs` est remplie par le décorateur `@log_pipeline_run` de `src/common/utils.py` (feeders Python).
 
-## Techno
-
-PostgreSQL 15 + PostGIS 3.4 (image `postgis/postgis:15-3.4`)
-
-## Exécution manuelle (si volume recréé)
+## Exécution manuelle (si le volume PostgreSQL est recréé)
 
 ```powershell
-Get-Content sql\ddl\00_init.sql | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\01_arrondissements.sql | docker exec -i ude_postgres psql -U ude_user -d urban_data
-# ... et ainsi de suite jusqu'à 07
+foreach ($f in "00_init","01_arrondissements","02_transactions_dvf","03_logements_sociaux","04_delinquance","05_revenus_iris","06_indicateurs_gold","07_pipeline_runs") {
+    Get-Content "sql\ddl\$f.sql" | docker exec -i ude_postgres psql -U ude_user -d urban_data
+}
 ```

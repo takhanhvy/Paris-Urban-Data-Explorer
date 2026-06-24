@@ -149,20 +149,16 @@ def ingest_delinquance(spark: SparkSession, input_path: str, output_path: str,
 def ingest_logements_sociaux(spark: SparkSession, input_path: str, output_path: str,
                               y: str, m: str, d: str) -> None:
     """
-    Lit le fichier logements_sociaux_raw.json (bronze, déjà récupéré via API).
-    Chemin input_path peut pointer vers data/bronze/ ou un bucket staging.
+    Lit le fichier logements_sociaux_raw.json depuis data/raw/ (landing zone).
+    Produit par ingestion/api/feeder_logements_sociaux.py avant le job Spark.
     cache() : count() de validation + écriture.
     """
-    # Supporte chemin local (bronze) ou s3a staging
     src = os.path.join(input_path, "logements_sociaux_raw.json")
     if not src.startswith("hdfs://") and not os.path.exists(src):
-        # Fallback vers data/bronze/
-        bronze = os.path.join(
-            os.path.dirname(input_path), "bronze", "logements_sociaux_raw.json"
+        raise FileNotFoundError(
+            f"Fichier logements sociaux introuvable : {src}\n"
+            f"Lance d'abord : docker exec ude_api python -m ingestion.api.feeder_logements_sociaux"
         )
-        if os.path.exists(bronze):
-            src = bronze
-            print(f"[feeder/logements_sociaux] Fallback vers {src}")
 
     print(f"[feeder/logements_sociaux] Lecture de {src}")
 

@@ -1,7 +1,8 @@
 """
-Feeder Logements Sociaux — API opendata.paris.fr vers data/bronze/
+Feeder Logements Sociaux — API opendata.paris.fr vers data/raw/
 4 174 enregistrements, paginés par 100.
 
+Sortie : data/raw/logements_sociaux_raw.json (landing zone, fidèle à la source)
 Retry automatique via tenacity (3 tentatives, backoff exponentiel).
 """
 
@@ -44,13 +45,14 @@ def _fetch_page(url: str, params: dict) -> dict:
     return response.json()
 
 
-@log_pipeline_run("feeder_logements_sociaux", "logements_sociaux", "bronze")
-def ingest_logements_sociaux(bronze_path: str | None = None) -> dict:
+@log_pipeline_run("feeder_logements_sociaux", "logements_sociaux", "raw")
+def ingest_logements_sociaux(raw_path: str | None = None) -> dict:
     """
-    Pagine l'API Paris OpenData et sauvegarde les résultats bruts en JSON.
+    Pagine l'API Paris OpenData et sauvegarde les résultats bruts en JSON
+    dans la landing zone data/raw/ (lu ensuite par Spark feeder.py).
     """
-    bronze_dir = Path(bronze_path or settings.data_bronze_path)
-    bronze_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir = Path(raw_path or settings.data_raw_path)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     url = settings.paris_opendata_url
     all_records = []
@@ -81,12 +83,12 @@ def ingest_logements_sociaux(bronze_path: str | None = None) -> dict:
         if len(all_records) >= int(total):
             break
 
-    # Sauvegarde JSON brut (Bronze = fidèle à la source)
-    output_file = bronze_dir / "logements_sociaux_raw.json"
+    # Sauvegarde JSON brut dans la landing zone raw/ (fidèle à la source)
+    output_file = raw_dir / "logements_sociaux_raw.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(all_records, f, ensure_ascii=False, indent=2)
 
-    logger.info(f"Logements sociaux Bronze : {len(all_records)} enregistrements → {output_file}")
+    logger.info(f"Logements sociaux raw : {len(all_records)} enregistrements → {output_file}")
     return {"nb_lignes_total": len(all_records)}
 
 

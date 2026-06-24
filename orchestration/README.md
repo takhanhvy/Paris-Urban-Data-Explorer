@@ -1,40 +1,38 @@
-# orchestration — Orchestration des pipelines (C2.4)
+# orchestration — Orchestration des pipelines
 
-Planification et enchaînement des jobs Spark.
+## Orchestrateur actuel : scripts/run_pipeline.ps1
 
-## Exécution actuelle (spark-submit)
+Le pipeline complet est déclenché via le script PowerShell `scripts/run_pipeline.ps1`. Il enchaîne 5 étapes dans l'ordre :
 
-Le pipeline complet est déclenché manuellement via les scripts dans `pipelines/spark/submit/` :
+1. **DDL PostgreSQL** — applique les 8 scripts `sql/ddl/` de façon idempotente
+2. **Feeders Python** — `feeder_logements_sociaux`, `feeder_airparif_batch`, `feeder_revenus` (dans `ude_api`)
+3. **Spark feeder** — `data/raw/` → MinIO `s3a://urban-data/bronze/` (toutes les sources)
+4. **Spark processor** — MinIO bronze → MinIO `s3a://urban-data/silver/`
+5. **Spark datamart** — MinIO silver → PostgreSQL `ude.indicateurs_gold`
 
 ```powershell
-# Étape 1 — Feeder : sources locales → MinIO /raw
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh all
-
-# Étape 2 — Processor : MinIO /raw → MinIO /silver
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh all
-
-# Étape 3 — Datamart : MinIO /silver → PostgreSQL
-docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh
+# Lancer le pipeline complet
+.\scripts\run_pipeline.ps1
 ```
 
-Les scripts lisent leur configuration depuis les variables d'environnement du conteneur (MinIO endpoint, credentials Spark, JDBC URL) — aucun chemin codé en dur.
+Le script vérifie que les 4 conteneurs critiques (`ude_postgres`, `ude_api`, `ude_minio`, `ude_spark_master`) sont `running` avant de démarrer.
 
-## Fréquences recommandées
+## Jobs Spark individuels
 
-| Job | Fréquence | Déclencheur |
-|-----|-----------|-------------|
-| `feeder.sh logements_sociaux` | Mensuel | Mise à jour API Paris OpenData |
-| `feeder.sh dvf` | Annuel | Publication DVF (juillet N+1) |
-| `feeder.sh all` + `processor.sh all` + `datamart.sh` | À la demande | Rechargement complet |
+Les scripts `pipelines/spark/submit/` permettent de relancer une étape ou une source spécifique :
 
-## Phase 2 — Orchestrateur cible
+```powershell
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024
+```
 
-Remplacement des scripts manuels par un orchestrateur (Prefect ou Airflow) avec :
-- DAG `batch_dvf_annual` : feeder DVF → processor → datamart
-- DAG `batch_logements_monthly` : feeder logements sociaux → processor → datamart
-- Alertes sur échec, retry automatique
-- Visibilité des runs dans l'UI Prefect / Airflow
+## Phase 2 — Airflow (prévu, non implémenté)
 
-## Techno actuelle
+Le dossier `orchestration/airflow/dags/` accueillera les DAGs Airflow lorsque l'équipe migrera vers une orchestration automatisée. DAGs prévus :
 
-Scripts `bash` + `spark-submit` + Docker Compose
+- `batch_dvf_annual` : feeder DVF → processor → datamart (1 fois/an, publication juillet)
+- `batch_logements_monthly` : feeder logements sociaux → processor → datamart (mensuel)
+- `streaming_airparif` : producer/consumer Kafka (horaire)
+
+Jusqu'à cette migration, `run_pipeline.ps1` est la référence pour l'exécution.

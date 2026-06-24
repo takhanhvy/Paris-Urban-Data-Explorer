@@ -7,7 +7,7 @@ Toutes les commandes à lancer depuis la racine du projet dans PowerShell.
 ## Stack Docker
 
 ```powershell
-# Premier démarrage (build les images Spark custom + lance tout)
+# Premier démarrage (build l'image API custom + lance tous les services)
 docker compose up -d --build
 
 # Relancer sans rebuild
@@ -20,175 +20,163 @@ docker compose ps
 docker compose logs -f ude_api
 docker compose logs -f ude_spark_master
 
-# Arrêter
+# Arrêter (sans supprimer les volumes)
 docker compose down
-```
 
----
-
-## Initialisation PostgreSQL
-
-Les scripts DDL s'exécutent automatiquement au premier démarrage via `docker-entrypoint-initdb.d/`.
-Si besoin de forcer manuellement (volume recréé) :
-
-```powershell
-Get-Content sql\ddl\00_init.sql              | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\01_arrondissements.sql   | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\02_transactions_dvf.sql  | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\03_logements_sociaux.sql | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\04_delinquance.sql       | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\05_revenus_iris.sql      | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\06_indicateurs_gold.sql  | docker exec -i ude_postgres psql -U ude_user -d urban_data
-Get-Content sql\ddl\07_pipeline_runs.sql     | docker exec -i ude_postgres psql -U ude_user -d urban_data
-```
-
-Repartir de zéro :
-
-```powershell
+# Reset complet (supprime tous les volumes — données perdues)
 docker compose down -v
 docker compose up -d --build
 ```
 
 ---
 
-## Pipeline Spark complet
-
-Les jobs sont soumis au cluster Spark Standalone via les scripts dans `pipelines/spark/submit/`.
-Les données transitent par HDFS : `hdfs://namenode:9000/urban-data/`.
-
-### Étape 0 — Logements sociaux (API → bronze local)
+## Pipeline complet (script automatisé)
 
 ```powershell
-docker exec ude_api python -m ingestion.api.feeder_logements_sociaux
+.\scripts\run_pipeline.ps1
 ```
 
-### Étape 1 — Feeder : data/raw + data/bronze → HDFS /raw
+Le script enchaîne : DDL PostgreSQL → feeders Python → Spark feeder → Spark processor → Spark datamart.
+
+---
+
+## Étapes manuelles détaillées
+
+### Étape 1 — Feeders Python (API → data/raw/)
+
+Tous les feeders écrivent dans `data/raw/` — la **landing zone commune** à toutes les sources.
+
+```powershell
+# Logements sociaux → data/raw/logements_sociaux_raw.json
+docker exec ude_api python -m ingestion.api.feeder_logements_sociaux
+
+# Airparif batch → data/raw/airparif_YYYY-MM-DD.json
+# (≠ streaming Kafka — voir section "Streaming Airparif" pour le KPI live)
+docker exec ude_api python -m ingestion.api.feeder_airparif_batch
+
+# Revenus FiLoSoFi XLSX → data/raw/revenus_iris_paris.csv
+docker exec ude_api python -m ingestion.files.feeder_revenus
+```
+
+### Étape 2 — Spark feeder : data/raw/ → MinIO bronze
 
 ```powershell
 # Toutes les sources (dvf, delinquance, logements_sociaux, revenus, arrondissements)
 docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh all
 
-# Source spécifique + date
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh dvf 2026-06-23
-docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh logements_sociaux 2026-06-23
+# Source spécifique
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh logements_sociaux 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh delinquance 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/feeder.sh revenus 2026-06-24
 ```
 
-### Étape 2 — Processor : HDFS /raw → HDFS /silver
+### Étape 3 — Spark processor : MinIO bronze → MinIO silver
 
 ```powershell
 # Toutes les sources
 docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh all
 
-# Source spécifique + date
-docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh dvf 2026-06-23
+# Source spécifique
+docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh dvf 2026-06-24
+docker exec ude_spark_master bash /opt/spark-jobs/submit/processor.sh delinquance 2026-06-24
 ```
 
-### Étape 3 — Datamart : HDFS /silver → PostgreSQL
+### Étape 4 — Spark datamart : MinIO silver → PostgreSQL
 
 ```powershell
-# Toutes les années
+# Toutes les années (2020–2025)
 docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh
 
 # Année spécifique
 docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024
 
-# Avec write mode append
+# Année spécifique en mode append
 docker exec ude_spark_master bash /opt/spark-jobs/submit/datamart.sh 2024 append
 ```
 
 ---
 
-## Ingestion Airparif
+## DDL PostgreSQL (si volume recréé)
 
-### Batch (injecte directement dans MongoDB)
-
-```powershell
-docker exec ude_api python ingestion/api/feeder_airparif_batch.py
-```
-
-### Données de test Airparif (si l'API n'est pas disponible)
+Les scripts s'appliquent automatiquement au premier démarrage. Pour forcer manuellement :
 
 ```powershell
-docker exec -i $(docker compose ps -q mongodb) mongosh urban_data_nosql --eval "
-db.air_quality.deleteMany({});
-var labels = ['Très bon','Bon','Bon','Moyen','Dégradé','Bon','Bon','Très bon','Bon','Moyen',
-              'Bon','Bon','Dégradé','Bon','Bon','Très bon','Bon','Moyen','Bon','Bon'];
-for (var i = 1; i <= 20; i++) {
-  var insee = i < 10 ? '7510' + i : '751' + i;
-  db.air_quality.replaceOne(
-    {insee: insee},
-    {insee: insee, data: [{date: '2026-06-23', label: labels[i-1], code_qual: 2}],
-     inserted_at: new Date(), timestamp: new Date().toISOString()},
-    {upsert: true}
-  );
+foreach ($f in "00_init","01_arrondissements","02_transactions_dvf","03_logements_sociaux","04_delinquance","05_revenus_iris","06_indicateurs_gold","07_pipeline_runs") {
+    Get-Content "sql\ddl\$f.sql" | docker exec -i ude_postgres psql -U ude_user -d urban_data -q
 }
-print('Docs insérés : ' + db.air_quality.countDocuments());
-"
-```
-
-### Streaming Airparif via Kafka (2 terminaux)
-
-```powershell
-# Terminal 1 — Producer (appelle API Airparif → Kafka)
-python -m ingestion.streaming.airparif_producer
-
-# Terminal 2 — Consumer (Kafka → MongoDB)
-python -m ingestion.streaming.airparif_consumer
 ```
 
 ---
 
-## Vérifications
+## Streaming Airparif via Kafka
+
+> **C'est ce chemin qui alimente le KPI "Qualité de l'air" du dashboard.** Le pipeline Spark batch (`feeder_airparif_batch.py`) écrit dans `data/raw/` comme les autres sources, mais le dashboard lit MongoDB. Pour que le KPI s'affiche, les deux processus ci-dessous doivent tourner.
 
 ```powershell
+# Terminal 1 — Producer (API Airparif → topic Kafka airparif.quality, toutes les heures)
+python -m ingestion.streaming.airparif_producer
+
+# Terminal 2 — Consumer (topic Kafka → MongoDB air_quality, TTL 24h)
+python -m ingestion.streaming.airparif_consumer
+```
+
+Si MongoDB `air_quality` est vide, le KPI affiche `N/A` (timeout 1 s, échec silencieux).
+
+---
+
+## Vérifications et debug
+
+```powershell
+# Test API — health check
+Invoke-RestMethod "http://localhost:8000/health"
+
 # Test API — métriques d'un arrondissement
 Invoke-RestMethod "http://localhost:8000/api/metrics?year=2024&arrondissement=75107"
 
-# Vérifier PostgreSQL — nombre de lignes gold
+# PostgreSQL — nombre de lignes gold
 docker exec ude_postgres psql -U ude_user -d urban_data -c "SELECT COUNT(*) FROM ude.indicateurs_gold;"
 
-# Vérifier MongoDB — documents Airparif
+# PostgreSQL — résumé par année
+docker exec ude_postgres psql -U ude_user -d urban_data -c "SELECT annee, COUNT(*) FROM ude.indicateurs_gold GROUP BY annee ORDER BY annee;"
+
+# PostgreSQL — shell interactif
+docker exec -it ude_postgres psql -U ude_user -d urban_data
+
+# MongoDB — nombre de docs Airparif
 docker exec -i $(docker compose ps -q mongodb) mongosh urban_data_nosql --eval "db.air_quality.countDocuments()"
 
-# Vérifier HDFS — lister les répertoires
-docker exec ude_namenode hdfs dfs -ls /urban-data/
-docker exec ude_namenode hdfs dfs -ls /urban-data/raw/
-docker exec ude_namenode hdfs dfs -ls /urban-data/silver/
+# MinIO — lister les buckets et le contenu bronze
+# → Interface web : http://localhost:9001 (minioadmin / minioadmin)
 ```
 
 ---
 
 ## Interfaces web
 
-| Interface | URL | Credentials |
-|-----------|-----|-------------|
-| Dashboard | http://localhost:8000/dashboard | — |
-| API Swagger | http://localhost:8000/docs | — |
-| Spark Master UI | http://localhost:8080 | — |
-| HDFS NameNode UI | http://localhost:9870 | — |
+| Interface | URL |
+|-----------|-----|
+| Dashboard | http://localhost:8000/dashboard/ |
+| API Swagger | http://localhost:8000/docs |
+| Spark UI | http://localhost:8080 |
+| MinIO console | http://localhost:9001 |
 
 ---
 
-## Redémarrage API
-
-Après modification du code FastAPI :
+## Relancer un service
 
 ```powershell
+# Après modification du code FastAPI
 docker compose restart api
+
+# Rebuild complet de l'image API
+docker compose build api && docker compose up -d api
 ```
 
----
-
-## Nettoyage
+## Nettoyage local
 
 ```powershell
-# Supprimer les caches Python (local)
+# Supprimer les caches Python
 Get-ChildItem -Recurse -Filter "__pycache__" | Remove-Item -Recurse -Force
 Get-ChildItem -Recurse -Filter "*.pyc" | Remove-Item -Force
-
-# Arrêter et supprimer tous les volumes (reset complet)
-docker compose down -v
-
-# Rebuild les images Spark (si Dockerfile.spark-master/worker modifié)
-docker compose build spark-master spark-worker
 ```
