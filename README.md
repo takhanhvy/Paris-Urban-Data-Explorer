@@ -49,7 +49,7 @@ API Airparif (live)  →  airparif_producer.py  →  Kafka  →  airparif_consum
 | 3 | Délinquance INSEE | Parquet (filtré Paris) | — |
 | 4 | Qualité de l'air Airparif | API live + Kafka | 20 arrondissements |
 | 5 | Revenus FiLoSoFi INSEE 2018 | XLSX → CSV | 12 395 IRIS |
-| 6 | Résidences principales INSEE 2022 | CSV (base-cc-logement-2022.CSV) | 20 arrondissements Paris |
+| 6 | Résidences principales INSEE 2022 | CSV (base-cc-logement-2022.CSV) | — |
 
 ## Prérequis
 

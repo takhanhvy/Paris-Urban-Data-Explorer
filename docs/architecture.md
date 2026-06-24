@@ -4,12 +4,13 @@
 
 ```mermaid
 flowchart TD
-    subgraph SOURCES["Sources (5 types)"]
-        DVF["DVF CSV<br/>dvf_75_2020–2025.csv<br/>~395k lignes"]
-        LOG["API Logements sociaux<br/>opendata.paris.fr<br/>4 174 records"]
-        DEL["Parquet Délinquance<br/>INSEE national → filtre Paris"]
-        REV["XLSX Revenus FiLoSoFi<br/>12 395 IRIS → filtre Paris"]
-        AIR["API Airparif live<br/>75101–75120 (temps réel)"]
+    subgraph SOURCES["Sources (6 types)"]
+        DVF["DVF CSV<br/>dvf_75_2020–2025.csv<br/>"]
+        LOG["API Logements sociaux<br/>opendata.paris.fr<br/>"]
+        DEL["Parquet Délinquance<br/>"]
+        REV["XLSX Revenus FiLoSoFi<br/>"]
+        AIR["API Airparif live<br/>(temps réel)"]
+        RP["CSV Résidences principales<br/>base-cc-logement-2022.CSV<br/>"]
     end
 
     subgraph INGEST["Ingestion Python (ude_api)"]
@@ -39,6 +40,7 @@ flowchart TD
 
     DVF --> SF
     DEL --> SF
+    RP --> SF
     LOG --> FL --> SF
     REV --> FR --> SF
     AIR --> SP --> SC --> MG
@@ -73,7 +75,7 @@ flowchart TD
 
 **processor.py** lit la partition bronze du jour, applique les transformations métier (cast types, filtre géographique Paris, calcul `prix_m2`, extraction du numéro d'arrondissement, filtrage des valeurs aberrantes DVF entre 500 et 80 000 €/m²), et écrit en silver. `persist(MEMORY_AND_DISK)` après nettoyage pour réutilisation.
 
-**datamart.py** joint les quatre sources silver, calcule les agrégats par arrondissement × année (`percentile_approx` pour la médiane, window function Min-Max pour le score attractivité), et écrit dans PostgreSQL via JDBC (`batchsize=10000`). `cache()` sur chaque source silver.
+**datamart.py** joint les cinq sources silver, calcule les agrégats par arrondissement × année (`percentile_approx` pour la médiane, window function Min-Max pour le score attractivité), et écrit dans PostgreSQL via JDBC (`batchsize=10000`). `cache()` sur chaque source silver. La source `residences_principales` alimente `ude.arrondissements.nb_residences_principales` via JVM bridge (UPDATE direct, hors JDBC Spark).
 
 ## Mapping compétences ↔ briques techniques
 
@@ -85,7 +87,7 @@ flowchart TD
 | C1.4 | Architecture scalable | Spark Standalone + Docker health checks + retry tenacity | Spark 4.1.2, Docker Compose | Workers ajoutables sans modifier le code, auto-retry APIs, déploiement en une commande |
 | C2.1 | API interopérable | 7 endpoints métier + auth X-API-Key + OpenAPI | FastAPI + Pydantic v2 | Validation stricte des paramètres, Swagger auto sur `/docs`, CORS configurable |
 | C2.2 | Système distribué/streaming | Producer → Kafka → Consumer → MongoDB | Kafka + asyncio + pymongo | 20 appels Airparif async, découplage total, replay depuis le topic, rétention 24h |
-| C2.3 | Transformation multi-sources | `processor.py` — 5 sources → silver unifié | PySpark 4.1.2 | CSV + Parquet + XLSX + JSON + API normalisés et joinables sur `arrondissement × annee` |
+| C2.3 | Transformation multi-sources | `processor.py` — 6 sources → silver unifié | PySpark 4.1.2 | CSV + Parquet + XLSX + JSON + API normalisés et joinables sur `arrondissement × annee` |
 | C2.4 | Pipelines optimisés | 3 jobs spark-submit + cache/persist + partitionnement | PySpark 4.1.2 | `cache()` visible Spark UI Storage, shuffle partitions=8, aucun chemin codé en dur |
 
 ## Sources de données du dashboard
@@ -95,11 +97,15 @@ Chaque KPI du dashboard interroge une source différente :
 | KPI | Source | Alimenté par |
 |-----|--------|--------------|
 | Prix médian/m² | PostgreSQL `ude.indicateurs_gold` | Spark datamart.py |
-| Logements sociaux | PostgreSQL `ude.indicateurs_gold` | Spark datamart.py |
+| Logements sociaux | PostgreSQL `ude.indicateurs_gold` + `ude.arrondissements` | Spark datamart.py + feeder résidences principales |
+| Revenu médian | PostgreSQL `ude.indicateurs_gold` | Spark datamart.py |
 | Densité population | PostgreSQL `ude.arrondissements` | Spark datamart.py |
 | Qualité de l'air | **MongoDB** `air_quality` | `airparif_consumer.py` (Kafka) |
+| Nombre de délits | PostgreSQL `ude.indicateurs_gold` | Spark datamart.py (`taux_delinquance_global` = SUM faits/an) |
 
 > **Important** : le KPI "Qualité de l'air" dépend du chemin **streaming** (Kafka), pas du pipeline Spark batch. `feeder_airparif_batch.py` écrit dans `data/raw/` comme les autres sources (landing zone commune) — c'est `airparif_producer.py` + `airparif_consumer.py` qui alimentent MongoDB. Si ces deux processus ne tournent pas, le KPI affiche `N/A`.
+
+> **Taux de logements sociaux** : calculé à la volée dans l'API — `SUM(nb_logements_sociaux) / nb_residences_principales × 100`. Le dénominateur `nb_residences_principales` provient de la source INSEE RP 2022 (`base-cc-logement-2022.CSV`), stockée dans `ude.arrondissements` via JVM bridge dans `datamart.py`.
 
 ## Optimisations Spark (C2.4)
 
